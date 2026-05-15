@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_current_user
 from app.models.user import User
 from app.schemas.content import (
     ContentCreate,
@@ -12,8 +12,10 @@ from app.schemas.content import (
     ContentListResponse,
     ContentRead,
     ContentUpdate,
-)
+    ContentAccessRead,
+    )
 from app.services.content_service import (
+    build_content_access_response,
     create_content,
     delete_content,
     get_content_by_slug_or_404,
@@ -53,13 +55,19 @@ def get_public_content(
     return ContentListResponse(items=items, total=total)
 
 
-@router.get("/{slug}", response_model=ContentDetailRead)
+@router.get("/{slug}", response_model=ContentAccessRead)
 def get_content_detail(
     slug: str,
     db: Annotated[Session, Depends(get_db)],
-) -> ContentDetailRead:
+    current_user: Annotated[User | None, Depends(get_optional_current_user)] = None,
+) -> ContentAccessRead:
     content = get_content_by_slug_or_404(db=db, slug=slug)
-    return content
+
+    return build_content_access_response(
+        db=db,
+        content=content,
+        user=current_user,
+    )
 
 
 @router.patch("/{content_id}", response_model=ContentRead)

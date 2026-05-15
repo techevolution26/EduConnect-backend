@@ -4,11 +4,11 @@ from fastapi import HTTPException, status
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.content import Content, ContentStatus
+from app.models.content import Content, ContentStatus, ContentVisibility
 from app.models.moderation import ModerationAction, ModerationLog
 from app.models.user import User, UserRole
 from app.schemas.content import ContentCreate, ContentUpdate
-
+from app.services.partnership_service import user_has_active_partnership
 
 def calculate_reading_time_minutes(body: str) -> int:
     words = len(body.split())
@@ -51,7 +51,10 @@ def get_content_by_slug_or_404(db: Session, slug: str) -> Content:
             joinedload(Content.category),
             joinedload(Content.hub),
         )
-        .where(Content.slug == slug)
+        .where(
+            Content.slug == slug,
+            Content.status == ContentStatus.PUBLISHED,
+        )
     )
 
     content = db.scalars(statement).first()
@@ -273,3 +276,50 @@ def list_pending_content(db: Session, skip: int = 0, limit: int = 20) -> tuple[l
     total = db.scalar(count_statement) or 0
 
     return items, total
+
+
+def content_requires_partnership(content: Content) -> bool:
+    return (
+        content.is_premium
+        or content.visibility == ContentVisibility.PARTNERS_ONLY
+    )
+
+
+def build_content_access_response(
+    db: Session,
+    content: Content,
+    user: User | None,
+) -> dict:
+    requires_partnership = content_requires_partnership(content)
+    has_access = True
+
+    if requires_partnership:
+        has_access = user_has_active_partnership(db, user)
+
+    data = {
+        "id": content.id,
+        "author_id": content.author_id,
+        "category_id": content.category_id,
+        "hub_id": content.hub_id,
+        "title": content.title,
+        "slug": content.slug,
+        "excerpt": content.excerpt,
+        "body": content.body if has_access else "",
+        "cover_image_url": content.cover_image_url,
+        "content_type": content.content_type,
+        "status": content.status,
+        "visibility": content.visibility,
+        "is_premium": content.is_premium,
+        "reading_time_minutes": content.reading_time_minutes,
+        "published_at": content.published_at,
+        "created_at": content.created_at,
+        "updated_at": content.updated_at,
+        "author": content.author,
+        "category": content.category,
+        "hub": content.hub,
+        "requires_partnership": requires_partnership,
+        "has_access": has_access,
+        "preview_body": content.body[:320] if not has_access else None,
+    }
+
+    return data

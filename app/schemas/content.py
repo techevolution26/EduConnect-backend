@@ -77,3 +77,9 @@ class ContentRejectRequest(BaseModel):
 class ContentListResponse(BaseModel):
     items: list[ContentRead]
     total: int
+
+
+class ContentAccessRead(ContentDetailRead):
+    requires_partnership: bool = False
+    has_access: bool = True
+    preview_body: str | None = None

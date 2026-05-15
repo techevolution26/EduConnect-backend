@@ -11,6 +11,11 @@ from app.models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login",
+    auto_error=False,
+)
+
 
 def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
@@ -45,6 +50,31 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account has been disabled.",
         )
+
+    return user
+
+
+def get_optional_current_user(
+    token: Annotated[str | None, Depends(optional_oauth2_scheme)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User | None:
+    if not token:
+        return None
+
+    payload = decode_access_token(token)
+
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+
+    if not user_id:
+        return None
+
+    user = db.get(User, user_id)
+
+    if not user or not user.is_active:
+        return None
 
     return user
 
