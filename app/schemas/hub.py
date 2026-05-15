@@ -37,3 +37,11 @@ class UserRead(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class HubRead(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

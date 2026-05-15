@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -41,6 +41,10 @@ class ContentUpdate(BaseModel):
 
 class ContentRead(BaseModel):
     id: str
+    author_id: str
+    category_id: Optional[str]
+    hub_id: Optional[str]
+
     title: str
     slug: str
     excerpt: Optional[str]
@@ -53,12 +57,23 @@ class ContentRead(BaseModel):
     is_premium: bool
     reading_time_minutes: int
 
-    author: UserRead
-    category: Optional[CategoryRead]
-    hub: Optional[HubRead]
-
     published_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ContentDetailRead(ContentRead):
+    author: UserRead
+    category: Optional[CategoryRead]
+    hub: Optional[HubRead]
+
+
+class ContentRejectRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class ContentListResponse(BaseModel):
+    items: list[ContentRead]
+    total: int
