@@ -1,8 +1,8 @@
 import enum
 from typing import Optional
 
-from sqlalchemy import Enum, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
@@ -35,19 +35,40 @@ class ChildrenAgeGroup(str, enum.Enum):
 class EducationResource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "education_resources"
 
-    content_id: Mapped[str] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), nullable=False)
+    content_id: Mapped[str] = mapped_column(
+        ForeignKey("contents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
     curriculum: Mapped[CurriculumType] = mapped_column(Enum(CurriculumType), nullable=False)
     grade_level: Mapped[Optional[str]] = mapped_column(String(80))
     subject: Mapped[Optional[str]] = mapped_column(String(120))
-    resource_type: Mapped[EducationResourceType] = mapped_column(Enum(EducationResourceType), nullable=False)
+    resource_type: Mapped[EducationResourceType] = mapped_column(
+        Enum(EducationResourceType),
+        nullable=False,
+    )
 
     download_url: Mapped[Optional[str]] = mapped_column(String(500))
+
+    content: Mapped["Content"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("content_id", name="uq_education_resource_content"),
+    )
 
 
 class ChildrenContent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "children_contents"
 
-    content_id: Mapped[str] = mapped_column(ForeignKey("contents.id", ondelete="CASCADE"), nullable=False)
+    content_id: Mapped[str] = mapped_column(
+        ForeignKey("contents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
     age_group: Mapped[ChildrenAgeGroup] = mapped_column(Enum(ChildrenAgeGroup), nullable=False)
+
+    content: Mapped["Content"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("content_id", name="uq_children_content_content"),
+    )

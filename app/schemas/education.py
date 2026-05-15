@@ -1,9 +1,14 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
 
-from app.models.education import ChildrenAgeGroup, CurriculumType, EducationResourceType
-from app.schemas.common import TimestampedSchema
+from app.models.education import (
+    ChildrenAgeGroup,
+    CurriculumType,
+    EducationResourceType,
+)
+from app.schemas.content import ContentRead
 
 
 class EducationResourceCreate(BaseModel):
@@ -15,13 +20,22 @@ class EducationResourceCreate(BaseModel):
     download_url: Optional[str] = None
 
 
-class EducationResourceRead(TimestampedSchema):
+class EducationResourceRead(BaseModel):
+    id: str
     content_id: str
     curriculum: CurriculumType
     grade_level: Optional[str]
     subject: Optional[str]
     resource_type: EducationResourceType
     download_url: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EducationResourceDetailRead(EducationResourceRead):
+    content: Optional[ContentRead] = None
 
 
 class ChildrenContentCreate(BaseModel):
@@ -29,6 +43,15 @@ class ChildrenContentCreate(BaseModel):
     age_group: ChildrenAgeGroup
 
 
-class ChildrenContentRead(TimestampedSchema):
+class ChildrenContentRead(BaseModel):
+    id: str
     content_id: str
     age_group: ChildrenAgeGroup
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChildrenContentDetailRead(ChildrenContentRead):
+    content: Optional[ContentRead] = None

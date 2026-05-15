@@ -6,11 +6,14 @@ from app.routers import (
     admin,
     auth,
     categories,
+    children,
     content,
+    education,
     engagement,
     health,
     hubs,
     users,
+    writers,
 )
 
 settings = get_settings()
@@ -32,8 +35,11 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(writers.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(hubs.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(engagement.router, prefix="/api/v1")
+app.include_router(education.router, prefix="/api/v1")
+app.include_router(children.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
