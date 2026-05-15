@@ -10,8 +10,10 @@ from app.routers import (
     content,
     education,
     engagement,
+    feed,
     health,
     hubs,
+    search,
     users,
     writers,
     partnerships,
@@ -39,6 +41,8 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(writers.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(hubs.router, prefix="/api/v1")
+app.include_router(search.router, prefix="/api/v1")
+app.include_router(feed.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(engagement.router, prefix="/api/v1")
 app.include_router(education.router, prefix="/api/v1")
