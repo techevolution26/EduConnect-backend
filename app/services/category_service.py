@@ -6,15 +6,13 @@ from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate
 
 
-def list_categories(db: Session) -> list[Category]:
-    return list(
-        db.scalars(
-            select(Category)
-            .where(Category.is_active == True)
-            .order_by(Category.name.asc())
-        ).all()
-    )
+def list_categories(db: Session, include_inactive: bool = False) -> list[Category]:
+    statement = select(Category).order_by(Category.name.asc())
 
+    if not include_inactive:
+        statement = statement.where(Category.is_active == True)
+
+    return list(db.scalars(statement).all())
 
 def get_category_or_404(db: Session, category_id: str) -> Category:
     category = db.get(Category, category_id)
@@ -75,3 +73,4 @@ def update_category(db: Session, category_id: str, payload: CategoryUpdate) -> C
     db.refresh(category)
 
     return category
+

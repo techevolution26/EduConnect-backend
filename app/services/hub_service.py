@@ -3,18 +3,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.hub import Hub, HubMember
-from app.schemas.hub import HubCreate, HubUpdate
 from app.models.user import User
+from app.schemas.hub import HubCreate, HubUpdate
 
 
-def list_hubs(db: Session) -> list[Hub]:
-    return list(
-        db.scalars(
-            select(Hub)
-            .where(Hub.is_active == True)
-            .order_by(Hub.name.asc())
-        ).all()
-    )
+def list_hubs(db: Session, include_inactive: bool = False) -> list[Hub]:
+    statement = select(Hub).order_by(Hub.name.asc())
+
+    if not include_inactive:
+        statement = statement.where(Hub.is_active == True)
+
+    return list(db.scalars(statement).all())
 
 
 def get_hub_or_404(db: Session, hub_id: str) -> Hub:
@@ -33,7 +32,10 @@ def get_hub_by_slug_or_404(db: Session, slug: str) -> Hub:
     hub = db.scalars(
         select(Hub)
         .options(joinedload(Hub.members))
-        .where(Hub.slug == slug)
+        .where(
+            Hub.slug == slug,
+            Hub.is_active == True,
+        )
     ).first()
 
     if not hub:
@@ -46,7 +48,9 @@ def get_hub_by_slug_or_404(db: Session, slug: str) -> Hub:
 
 
 def create_hub(db: Session, payload: HubCreate) -> Hub:
-    existing = db.scalars(select(Hub).where(Hub.slug == payload.slug)).first()
+    existing = db.scalars(
+        select(Hub).where(Hub.slug == payload.slug)
+    ).first()
 
     if existing:
         raise HTTPException(
@@ -54,7 +58,13 @@ def create_hub(db: Session, payload: HubCreate) -> Hub:
             detail="Hub slug already exists.",
         )
 
-    hub = Hub(**payload.model_dump())
+    hub = Hub(
+        name=payload.name,
+        slug=payload.slug,
+        description=payload.description,
+        cover_image_url=payload.cover_image_url,
+        is_active=True,
+    )
 
     db.add(hub)
     db.commit()
@@ -93,7 +103,13 @@ def update_hub(db: Session, hub_id: str, payload: HubUpdate) -> Hub:
 
 
 def join_hub(db: Session, hub_id: str, user: User) -> HubMember:
-    get_hub_or_404(db, hub_id)
+    hub = get_hub_or_404(db, hub_id)
+
+    if not hub.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot join an inactive hub.",
+        )
 
     existing = db.scalars(
         select(HubMember).where(

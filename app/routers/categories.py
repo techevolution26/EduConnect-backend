@@ -20,8 +20,9 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 @router.get("", response_model=list[CategoryRead])
 def get_categories(
     db: Annotated[Session, Depends(get_db)],
+    include_inactive: bool = False,
 ) -> list[CategoryRead]:
-    return list_categories(db)
+    return list_categories(db, include_inactive=include_inactive)
 
 
 @router.get("/{category_id}", response_model=CategoryRead)

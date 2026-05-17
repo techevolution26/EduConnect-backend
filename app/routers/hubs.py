@@ -24,8 +24,9 @@ router = APIRouter(prefix="/hubs", tags=["Hubs"])
 @router.get("", response_model=list[HubRead])
 def get_hubs(
     db: Annotated[Session, Depends(get_db)],
+    include_inactive: bool = False,
 ) -> list[HubRead]:
-    return list_hubs(db)
+    return list_hubs(db, include_inactive=include_inactive)
 
 
 @router.get("/{slug}", response_model=HubRead)

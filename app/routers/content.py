@@ -22,7 +22,9 @@ from app.services.content_service import (
     list_public_content,
     submit_content_for_review,
     update_content,
+    list_my_content,
 )
+from app.models.content import ContentStatus
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -54,6 +56,24 @@ def get_public_content(
 
     return ContentListResponse(items=items, total=total)
 
+
+@router.get("/mine", response_model=ContentListResponse)
+def get_my_content(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    status_filter: ContentStatus | None = None,
+) -> ContentListResponse:
+    items, total = list_my_content(
+        db=db,
+        user=current_user,
+        skip=skip,
+        limit=limit,
+        status_filter=status_filter,
+    )
+
+    return ContentListResponse(items=items, total=total)
 
 @router.get("/{slug}", response_model=ContentAccessRead)
 def get_content_detail(

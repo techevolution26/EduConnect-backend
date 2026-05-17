@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import List, Optional
 
 from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
@@ -15,7 +14,12 @@ class Hub(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     cover_image_url: Mapped[Optional[str]] = mapped_column(String(500))
 
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default="1",
+        nullable=False,
+    )
 
     contents: Mapped[List["Content"]] = relationship(back_populates="hub")
     members: Mapped[List["HubMember"]] = relationship(
@@ -27,8 +31,14 @@ class Hub(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class HubMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "hub_members"
 
-    hub_id: Mapped[str] = mapped_column(ForeignKey("hubs.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    hub_id: Mapped[str] = mapped_column(
+        ForeignKey("hubs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
     hub: Mapped["Hub"] = relationship(back_populates="members")
 

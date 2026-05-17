@@ -323,3 +323,32 @@ def build_content_access_response(
     }
 
     return data
+
+def list_my_content(
+    db: Session,
+    user: User,
+    skip: int = 0,
+    limit: int = 50,
+    status_filter: ContentStatus | None = None,
+) -> tuple[list[Content], int]:
+    ensure_can_write_content(user)
+
+    filters = [Content.author_id == user.id]
+
+    if status_filter:
+        filters.append(Content.status == status_filter)
+
+    statement = (
+        select(Content)
+        .where(*filters)
+        .order_by(Content.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+
+    count_statement = select(func.count()).select_from(Content).where(*filters)
+
+    items = list(db.scalars(statement).all())
+    total = db.scalar(count_statement) or 0
+
+    return items, total
