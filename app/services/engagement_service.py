@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.content import Content, ContentStatus
 from app.models.engagement import Bookmark, Comment, Follow, Like
 from app.models.user import User
+from app.schemas import content
 from app.schemas.engagement import CommentCreate
+from app.models.notification import NotificationType
+from app.services.notification_service import create_notification
 
 
 def get_published_content_or_404(db: Session, content_id: str) -> Content:
@@ -96,7 +99,7 @@ def create_comment(
     payload: CommentCreate,
     user: User,
 ) -> Comment:
-    get_published_content_or_404(db, content_id)
+    content = get_published_content_or_404(db, content_id)
 
     if payload.parent_id:
         parent = db.get(Comment, payload.parent_id)
@@ -115,6 +118,14 @@ def create_comment(
     )
 
     db.add(comment)
+    if content.author_id != user.id:
+        create_notification(
+        db=db,
+        user_id=content.author_id,
+        notification_type=NotificationType.COMMENT,
+        title="New comment on your content",
+        body=f"{user.full_name} commented on “{content.title}”.",
+    )
     db.commit()
     db.refresh(comment)
 
@@ -165,6 +176,13 @@ def follow_writer(db: Session, writer_id: str, user: User) -> Follow:
     follow = Follow(follower_id=user.id, following_id=writer_id)
 
     db.add(follow)
+    create_notification(
+    db=db,
+    user_id=writer_id,
+    notification_type=NotificationType.NEW_FOLLOWER,
+    title="You have a new follower",
+    body=f"{user.full_name} started following you.",
+)
     db.commit()
     db.refresh(follow)
 

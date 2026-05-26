@@ -17,6 +17,7 @@ from app.routers import (
     users,
     writers,
     partnerships,
+    notifications,
 )
 
 settings = get_settings()
@@ -49,3 +50,4 @@ app.include_router(education.router, prefix="/api/v1")
 app.include_router(children.router, prefix="/api/v1")
 app.include_router(partnerships.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(notifications.router, prefix="/api/v1")

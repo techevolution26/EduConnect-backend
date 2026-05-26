@@ -9,6 +9,11 @@ from app.models.moderation import ModerationAction, ModerationLog
 from app.models.user import User, UserRole
 from app.schemas.content import ContentCreate, ContentUpdate
 from app.services.partnership_service import user_has_active_partnership
+from app.models.notification import NotificationType
+from app.services.notification_service import create_notification
+from app.models.moderation import ModerationLog
+from app.models.engagement import Bookmark, Comment, Follow, Like
+
 
 def calculate_reading_time_minutes(body: str) -> int:
     words = len(body.split())
@@ -186,7 +191,17 @@ def approve_content(db: Session, content_id: str, moderator: User) -> Content:
 
     db.add(content)
     db.add(log)
+
+    create_notification(
+    db=db,
+    user_id=content.author_id,
+    notification_type=NotificationType.CONTENT_APPROVED,
+    title="Your content was approved",
+    body=f"“{content.title}” is now published and visible to readers.",
+)
+
     db.commit()
+    db.refresh(content)
     db.refresh(content)
 
     return content
@@ -217,6 +232,14 @@ def reject_content(
 
     db.add(content)
     db.add(log)
+
+    create_notification(
+    db=db,
+    user_id=content.author_id,
+    notification_type=NotificationType.CONTENT_REJECTED,
+    title="Your content needs revision",
+    body=f"“{content.title}” was rejected. Reason: {reason}",
+)
     db.commit()
     db.refresh(content)
 
@@ -352,3 +375,146 @@ def list_my_content(
     total = db.scalar(count_statement) or 0
 
     return items, total
+
+def get_my_content_or_404(db: Session, content_id: str, user: User) -> Content:
+    ensure_can_write_content(user)
+
+    content = db.get(Content, content_id)
+
+    if not content or content.author_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content was not found.",
+        )
+
+    return content
+
+
+
+def list_my_content_moderation_logs(
+    db: Session,
+    content_id: str,
+    user: User,
+) -> list[ModerationLog]:
+    content = get_my_content_or_404(db, content_id, user)
+
+    return list(
+        db.scalars(
+            select(ModerationLog)
+            .where(ModerationLog.content_id == content.id)
+            .order_by(ModerationLog.created_at.desc())
+        ).all()
+    )
+
+
+
+def get_my_writer_analytics(db: Session, user: User) -> dict:
+    ensure_can_write_content(user)
+
+    total_content = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(Content.author_id == user.id)
+        )
+        or 0
+    )
+
+    drafts = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == user.id,
+                Content.status == ContentStatus.DRAFT,
+            )
+        )
+        or 0
+    )
+
+    pending = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == user.id,
+                Content.status == ContentStatus.PENDING_REVIEW,
+            )
+        )
+        or 0
+    )
+
+    published = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == user.id,
+                Content.status == ContentStatus.PUBLISHED,
+            )
+        )
+        or 0
+    )
+
+    rejected = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == user.id,
+                Content.status == ContentStatus.REJECTED,
+            )
+        )
+        or 0
+    )
+
+    followers = (
+        db.scalar(
+            select(func.count())
+            .select_from(Follow)
+            .where(Follow.following_id == user.id)
+        )
+        or 0
+    )
+
+    likes_received = (
+        db.scalar(
+            select(func.count())
+            .select_from(Like)
+            .join(Content, Content.id == Like.content_id)
+            .where(Content.author_id == user.id)
+        )
+        or 0
+    )
+
+    comments_received = (
+        db.scalar(
+            select(func.count())
+            .select_from(Comment)
+            .join(Content, Content.id == Comment.content_id)
+            .where(Content.author_id == user.id)
+        )
+        or 0
+    )
+
+    bookmarks_received = (
+        db.scalar(
+            select(func.count())
+            .select_from(Bookmark)
+            .join(Content, Content.id == Bookmark.content_id)
+            .where(Content.author_id == user.id)
+        )
+        or 0
+    )
+
+    return {
+        "total_content": total_content,
+        "drafts": drafts,
+        "pending": pending,
+        "published": published,
+        "rejected": rejected,
+        "followers": followers,
+        "likes_received": likes_received,
+        "comments_received": comments_received,
+        "bookmarks_received": bookmarks_received,
+    }

@@ -1,3 +1,4 @@
+from select import select
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_optional_current_user
+from app.models.moderation import ModerationLog
 from app.models.user import User
 from app.schemas.content import (
     ContentCreate,
@@ -14,6 +16,7 @@ from app.schemas.content import (
     ContentUpdate,
     ContentAccessRead,
     )
+from app.schemas.moderation import ModerationLogRead
 from app.services.content_service import (
     build_content_access_response,
     create_content,
@@ -22,9 +25,13 @@ from app.services.content_service import (
     list_public_content,
     submit_content_for_review,
     update_content,
+    list_my_content_moderation_logs,
+    get_my_content_or_404,
     list_my_content,
+    get_my_writer_analytics,
 )
 from app.models.content import ContentStatus
+from app.schemas.writer_analytics import WriterAnalyticsRead
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -74,6 +81,48 @@ def get_my_content(
     )
 
     return ContentListResponse(items=items, total=total)
+
+
+@router.get("/analytics/me", response_model=WriterAnalyticsRead)
+def get_my_analytics(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> WriterAnalyticsRead:
+    return get_my_writer_analytics(db=db, user=current_user)
+
+
+@router.get("/mine/{content_id}", response_model=ContentRead)
+def get_my_single_content(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ContentRead:
+    return get_my_content_or_404(
+        db=db,
+        content_id=content_id,
+        user=current_user,
+    )
+
+
+# @router.get("/mine/analytics", response_model=WriterAnalyticsRead)
+# def get_my_analytics(
+#     current_user: Annotated[User, Depends(get_current_user)],
+#     db: Annotated[Session, Depends(get_db)],
+# ) -> WriterAnalyticsRead:
+#     return get_my_writer_analytics(db=db, user=current_user)
+
+@router.get("/mine/{content_id}/moderation", response_model=list[ModerationLogRead])
+def get_my_content_moderation_logs(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[ModerationLogRead]:
+    return list_my_content_moderation_logs(
+        db=db,
+        content_id=content_id,
+        user=current_user,
+    )
+
 
 @router.get("/{slug}", response_model=ContentAccessRead)
 def get_content_detail(
