@@ -98,3 +98,27 @@ def list_writer_content(
     total = db.scalar(count_statement) or 0
 
     return items, total
+
+
+
+def get_writer_relationship(db: Session, writer_id: str, user: User) -> dict:
+    writer = get_writer_or_404(db, writer_id)
+
+    is_self = writer.id == user.id
+
+    following = False
+
+    if not is_self:
+        existing = db.scalars(
+            select(Follow).where(
+                Follow.follower_id == user.id,
+                Follow.following_id == writer_id,
+            )
+        ).first()
+
+        following = existing is not None
+
+    return {
+        "following": following,
+        "is_self": is_self,
+    }

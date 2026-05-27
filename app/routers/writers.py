@@ -4,10 +4,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
 from app.schemas.content import ContentListResponse
 from app.schemas.writer import WriterProfileRead
+from app.schemas.writer_relationship import WriterRelationshipRead
 from app.services.writer_service import (
     get_writer_or_404,
+    get_writer_relationship,
     get_writer_stats,
     list_writer_content,
     list_writers,
@@ -44,6 +48,18 @@ def get_writers(
 
     return response
 
+
+@router.get("/{writer_id}/relationship", response_model=WriterRelationshipRead)
+def get_writer_relationship_status(
+    writer_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> WriterRelationshipRead:
+    return get_writer_relationship(
+        db=db,
+        writer_id=writer_id,
+        user=current_user,
+    )
 
 @router.get("/{writer_id}", response_model=WriterProfileRead)
 def get_writer_profile(
