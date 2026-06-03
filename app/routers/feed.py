@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.models.content import ContentType
 from app.models.user import User
 from app.schemas.feed import FeedResponse
 from app.services.feed_service import (
@@ -18,11 +19,11 @@ router = APIRouter(prefix="/feed", tags=["Feed"])
 
 
 @router.get("/discover", response_model=FeedResponse)
-def get_discovery_feed(
+def get_discover_feed(
     db: Annotated[Session, Depends(get_db)],
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
-    content_type: str | None = None,
+    limit: int = Query(default=30, ge=1, le=100),
+    content_type: ContentType | None = None,
     category_id: str | None = None,
     hub_id: str | None = None,
 ) -> FeedResponse:

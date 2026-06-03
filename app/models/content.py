@@ -66,6 +66,13 @@ class Content(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     reading_time_minutes: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
+    is_featured: Mapped[bool] = mapped_column(
+    default=False,
+    server_default="false",
+    nullable=False,
+    index=True,
+    )
+    featured_at: Mapped[datetime | None]
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     author: Mapped["User"] = relationship(back_populates="contents")

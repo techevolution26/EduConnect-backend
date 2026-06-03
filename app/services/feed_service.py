@@ -1,9 +1,11 @@
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
+from app.models.category import Category
 from app.models.content import Content, ContentStatus
+from app.models.education import ChildrenContent, EducationResource
 from app.models.engagement import Follow
-from app.models.hub import HubMember
+from app.models.hub import Hub, HubMember
 from app.models.user import User, UserRole
 
 
@@ -29,12 +31,21 @@ def list_discovery_feed(
     statement = (
         select(Content)
         .where(and_(*filters))
-        .order_by(Content.published_at.desc(), Content.created_at.desc())
+        .order_by(
+            Content.is_featured.desc(),
+            Content.featured_at.desc(),
+            Content.published_at.desc(),
+            Content.created_at.desc(),
+        )
         .offset(skip)
         .limit(limit)
     )
 
-    count_statement = select(func.count()).select_from(Content).where(and_(*filters))
+    count_statement = (
+        select(func.count())
+        .select_from(Content)
+        .where(and_(*filters))
+    )
 
     items = list(db.scalars(statement).all())
     total = db.scalar(count_statement) or 0
@@ -175,3 +186,133 @@ def list_hub_feed(
         limit=limit,
         hub_id=hub_id,
     )
+
+
+def global_search(
+    db: Session,
+    query: str,
+    limit: int = 10,
+) -> dict:
+    search_value = f"%{query.strip()}%"
+
+    content_items = list(
+        db.scalars(
+            select(Content)
+            .where(
+                Content.status == ContentStatus.PUBLISHED,
+                or_(
+                    Content.title.ilike(search_value),
+                    Content.slug.ilike(search_value),
+                    Content.excerpt.ilike(search_value),
+                    Content.body.ilike(search_value),
+                ),
+            )
+            .order_by(Content.published_at.desc(), Content.created_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+    writers = list(
+        db.scalars(
+            select(User)
+            .where(
+                User.is_active == True,
+                User.role.in_(
+                    [
+                        UserRole.WRITER,
+                        UserRole.TEACHER,
+                        UserRole.MODERATOR,
+                        UserRole.ADMIN,
+                    ]
+                ),
+                or_(
+                    User.full_name.ilike(search_value),
+                    User.username.ilike(search_value),
+                    User.bio.ilike(search_value),
+                ),
+            )
+            .order_by(User.created_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+    hubs = list(
+        db.scalars(
+            select(Hub)
+            .where(
+                Hub.is_active == True,
+                or_(
+                    Hub.name.ilike(search_value),
+                    Hub.slug.ilike(search_value),
+                    Hub.description.ilike(search_value),
+                ),
+            )
+            .order_by(Hub.name.asc())
+            .limit(limit)
+        ).all()
+    )
+
+    categories = list(
+        db.scalars(
+            select(Category)
+            .where(
+                Category.is_active == True,
+                or_(
+                    Category.name.ilike(search_value),
+                    Category.slug.ilike(search_value),
+                    Category.description.ilike(search_value),
+                ),
+            )
+            .order_by(Category.name.asc())
+            .limit(limit)
+        ).all()
+    )
+
+    education_resources = list(
+        db.scalars(
+            select(EducationResource)
+            .options(joinedload(EducationResource.content))
+            .join(Content, Content.id == EducationResource.content_id)
+            .where(
+                Content.status == ContentStatus.PUBLISHED,
+                or_(
+                    Content.title.ilike(search_value),
+                    Content.excerpt.ilike(search_value),
+                    Content.body.ilike(search_value),
+                    EducationResource.curriculum.ilike(search_value),
+                    EducationResource.grade_level.ilike(search_value),
+                    EducationResource.subject.ilike(search_value),
+                    EducationResource.resource_type.ilike(search_value),
+                ),
+            )
+            .limit(limit)
+        ).unique().all()
+    )
+
+    children_content = list(
+        db.scalars(
+            select(ChildrenContent)
+            .options(joinedload(ChildrenContent.content))
+            .join(Content, Content.id == ChildrenContent.content_id)
+            .where(
+                Content.status == ContentStatus.PUBLISHED,
+                or_(
+                    Content.title.ilike(search_value),
+                    Content.excerpt.ilike(search_value),
+                    Content.body.ilike(search_value),
+                    ChildrenContent.age_group.ilike(search_value),
+                ),
+            )
+            .limit(limit)
+        ).unique().all()
+    )
+
+    return {
+        "query": query,
+        "content": content_items,
+        "writers": writers,
+        "hubs": hubs,
+        "categories": categories,
+        "education_resources": education_resources,
+        "children_content": children_content,
+    }

@@ -23,8 +23,10 @@ from app.services.admin_service import (
 
 from app.services.content_service import (
     approve_content,
+    get_content_or_404,
     list_pending_content,
     reject_content,
+    toggle_featured_content,
 )
 
 from app.services.admin_service import (
@@ -162,3 +164,13 @@ def reject_pending_content(
         moderator=current_user,
         reason=payload.reason,
     )
+
+
+@router.post("/content/{content_id}/feature", response_model=ContentRead)
+def toggle_featured(
+    content_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_admin)],
+) -> ContentRead:
+    content = get_content_or_404(db, content_id)
+    return toggle_featured_content(db, content)

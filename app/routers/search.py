@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.feed import SearchResponse
-from app.services.feed_service import search_content
+from app.schemas.search import GlobalSearchResponse
+from app.services.feed_service import global_search, search_content
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
@@ -32,4 +33,16 @@ def search_published_content(
         query=q,
         items=items,
         total=total,
+    )
+
+@router.get("/global", response_model=GlobalSearchResponse)
+def global_platform_search(
+    db: Annotated[Session, Depends(get_db)],
+    q: str = Query(min_length=2, max_length=120),
+    limit: int = Query(default=10, ge=1, le=30),
+) -> GlobalSearchResponse:
+    return  global_search(
+        db=db,
+        query=q,
+        limit=limit,
     )

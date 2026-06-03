@@ -20,3 +20,4 @@ from app.models.moderation import (
     ReportStatus,
 )
 from app.models.notification import Notification, NotificationType
+from app.models.role_request import RoleUpgradeRequest

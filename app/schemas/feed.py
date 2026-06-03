@@ -6,8 +6,8 @@ from app.schemas.content import ContentRead
 class FeedResponse(BaseModel):
     items: list[ContentRead]
     total: int
-    skip: int
-    limit: int
+    skip: int = 0
+    limit: int = 20
 
 
 class SearchResponse(BaseModel):

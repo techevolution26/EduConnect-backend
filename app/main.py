@@ -13,6 +13,7 @@ from app.routers import (
     feed,
     health,
     hubs,
+    role_requests,
     search,
     users,
     writers,
@@ -51,3 +52,4 @@ app.include_router(children.router, prefix="/api/v1")
 app.include_router(partnerships.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(role_requests.router, prefix="/api/v1")

@@ -13,7 +13,7 @@ from app.models.notification import NotificationType
 from app.services.notification_service import create_notification
 from app.models.moderation import ModerationLog
 from app.models.engagement import Bookmark, Comment, Follow, Like
-
+from datetime import datetime, timezone
 
 def calculate_reading_time_minutes(body: str) -> int:
     words = len(body.split())
@@ -518,3 +518,20 @@ def get_my_writer_analytics(db: Session, user: User) -> dict:
         "comments_received": comments_received,
         "bookmarks_received": bookmarks_received,
     }
+
+def toggle_featured_content(
+    db: Session,
+    content: Content,
+) -> Content:
+    content.is_featured = not content.is_featured
+
+    if content.is_featured:
+        content.featured_at = datetime.now(timezone.utc)
+    else:
+        content.featured_at = None
+
+    db.add(content)
+    db.commit()
+    db.refresh(content)
+
+    return content

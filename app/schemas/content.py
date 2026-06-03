@@ -56,7 +56,8 @@ class ContentRead(BaseModel):
     visibility: ContentVisibility
     is_premium: bool
     reading_time_minutes: int
-
+    is_featured: bool = False
+    featured_at: datetime | None = None
     published_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
