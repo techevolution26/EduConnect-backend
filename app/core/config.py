@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     debug: bool = True
 
     database_url: str = Field(..., alias="DATABASE_URL")
-
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(

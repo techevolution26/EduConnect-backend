@@ -1,5 +1,4 @@
-# make ChildrenContentRead schema
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ChildrenContentRead(BaseModel):

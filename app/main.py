@@ -13,12 +13,12 @@ from app.routers import (
     feed,
     health,
     hubs,
+    notifications,
+    partnerships,
     role_requests,
     search,
     users,
     writers,
-    partnerships,
-    notifications,
 )
 
 settings = get_settings()
