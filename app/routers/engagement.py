@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_optional_current_user
 from app.models.user import User
 from app.schemas.common import MessageResponse
 from app.schemas.content import ContentRead
@@ -15,34 +15,17 @@ from app.services.engagement_service import (
     follow_writer,
     get_content_counts,
     get_my_bookmarks,
+    like_comment,
     like_content,
     list_comments,
     remove_bookmark,
     unfollow_writer,
+    unlike_comment,
     unlike_content,
 )
 
 router = APIRouter(tags=["Engagement"])
 
-
-@router.post("/content/{content_id}/like", response_model=MessageResponse)
-def like_existing_content(
-    content_id: str,
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-) -> MessageResponse:
-    like_content(db, content_id, current_user)
-    return MessageResponse(message="Content liked successfully.")
-
-
-@router.delete("/content/{content_id}/like", status_code=status.HTTP_204_NO_CONTENT)
-def unlike_existing_content(
-    content_id: str,
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-) -> Response:
-    unlike_content(db, content_id, current_user)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/content/{content_id}/bookmark", response_model=MessageResponse)
@@ -78,9 +61,30 @@ def create_content_comment(
 @router.get("/content/{content_id}/comments", response_model=list[CommentRead])
 def get_content_comments(
     content_id: str,
+    current_user: Annotated[User | None, Depends(get_optional_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[CommentRead]:
-    return list_comments(db, content_id)
+    return list_comments(db, content_id, current_user)
+
+
+@router.post("/comments/{comment_id}/like", response_model=MessageResponse)
+def like_existing_comment(
+    comment_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> MessageResponse:
+    like_comment(db, comment_id, current_user)
+    return MessageResponse(message="Comment liked successfully.")
+
+
+@router.delete("/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+def unlike_existing_comment(
+    comment_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    unlike_comment(db, comment_id, current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/content/{content_id}/counts")
@@ -116,4 +120,23 @@ def unfollow_existing_writer(
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
     unfollow_writer(db, writer_id, current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.post("/content/{content_id}/like", response_model=MessageResponse)
+def like_existing_content(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> MessageResponse:
+    like_content(db, content_id, current_user)
+    return MessageResponse(message="Content liked successfully.")
+
+
+@router.delete("/content/{content_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+def unlike_existing_content(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    unlike_content(db, content_id, current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,7 +1,6 @@
 import enum
 from datetime import datetime
 from typing import List, Optional
-from xml.etree.ElementTree import Comment
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,7 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.category import Category
 from app.models.hub import Hub
-from app.models.user import User
 from app.models.user import User
 
 
@@ -41,9 +39,16 @@ class ContentVisibility(str, enum.Enum):
 class Content(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "contents"
 
-    author_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    category_id: Mapped[Optional[str]] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"))
-    hub_id: Mapped[Optional[str]] = mapped_column(ForeignKey("hubs.id", ondelete="SET NULL"))
+    author_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    category_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"),
+    )
+    hub_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("hubs.id", ondelete="SET NULL"),
+    )
 
     title: Mapped[str] = mapped_column(String(220), nullable=False)
     slug: Mapped[str] = mapped_column(String(260), unique=True, index=True, nullable=False)
@@ -67,12 +72,13 @@ class Content(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     reading_time_minutes: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     is_featured: Mapped[bool] = mapped_column(
-    default=False,
-    server_default="false",
-    nullable=False,
-    index=True,
+        Boolean,
+        default=False,
+        server_default="false",
+        nullable=False,
+        index=True,
     )
-    featured_at: Mapped[datetime | None]
+    featured_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     author: Mapped["User"] = relationship(back_populates="contents")
@@ -80,6 +86,7 @@ class Content(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     hub: Mapped[Optional["Hub"]] = relationship(back_populates="contents")
 
     comments: Mapped[List["Comment"]] = relationship(
+        "Comment",
         back_populates="content",
         cascade="all, delete-orphan",
     )

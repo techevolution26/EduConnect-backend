@@ -1,9 +1,15 @@
-from typing import Optional
+from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, Text, UniqueConstraint
+from typing import TYPE_CHECKING
+
+from sqlalchemy import ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.content import Content
+    from app.models.user import User
 
 
 class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -12,20 +18,55 @@ class Comment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     content_id: Mapped[str] = mapped_column(
         ForeignKey("contents.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     user_id: Mapped[str] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
-    parent_id: Mapped[Optional[str]] = mapped_column(
+    parent_id: Mapped[str | None] = mapped_column(
         ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    is_hidden: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    user = relationship("User", back_populates="comments")
+    content = relationship("Content", back_populates="comments")
+    parent = relationship("Comment", remote_side="Comment.id", back_populates="children")
+    children = relationship(
+        "Comment",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+    )
+    likes = relationship(
+        "CommentLike",
+        back_populates="comment",
+        cascade="all, delete-orphan",
     )
 
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    content: Mapped["Content"] = relationship(back_populates="comments")
-    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+class CommentLike(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "comment_likes"
+    __table_args__ = (
+        UniqueConstraint("comment_id", "user_id", name="uq_comment_likes_comment_user"),
+    )
+
+    comment_id: Mapped[str] = mapped_column(
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    comment = relationship("Comment", back_populates="likes")
+    user = relationship("User", back_populates="comment_likes")
 
 
 class Like(UUIDPrimaryKeyMixin, TimestampMixin, Base):

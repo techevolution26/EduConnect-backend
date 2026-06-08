@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.content import Content, ContentStatus
-from app.models.engagement import Bookmark, Comment, Follow, Like
+from app.models.engagement import Bookmark, Comment, CommentLike, Follow, Like
 from app.models.user import User
 from app.schemas import content
 from app.schemas.engagement import CommentCreate
@@ -22,6 +22,56 @@ def get_published_content_or_404(db: Session, content_id: str) -> Content:
 
     return content
 
+
+def get_comment_or_404(db: Session, comment_id: str) -> Comment:
+    comment = db.get(Comment, comment_id)
+    if not comment or comment.is_hidden:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment was not found.",
+        )
+
+    get_published_content_or_404(db, comment.content_id)
+    return comment
+
+
+def _attach_comment_meta(
+    db: Session,
+    comments: list[Comment],
+    user: User | None = None,
+) -> list[Comment]:
+    if not comments:
+        return comments
+
+    comment_ids = [comment.id for comment in comments]
+
+    likes_rows = db.execute(
+        select(
+            CommentLike.comment_id,
+            func.count(CommentLike.id),
+        )
+        .where(CommentLike.comment_id.in_(comment_ids))
+        .group_by(CommentLike.comment_id)
+    ).all()
+
+    likes_count_map = {row[0]: int(row[1]) for row in likes_rows}
+
+    liked_ids: set[str] = set()
+    if user:
+        liked_ids = set(
+            db.scalars(
+                select(CommentLike.comment_id).where(
+                    CommentLike.user_id == user.id,
+                    CommentLike.comment_id.in_(comment_ids),
+                )
+            ).all()
+        )
+
+    for comment in comments:
+        setattr(comment, "likes_count", likes_count_map.get(comment.id, 0))
+        setattr(comment, "liked_by_me", comment.id in liked_ids)
+
+    return comments
 
 def like_content(db: Session, content_id: str, user: User) -> Like:
     get_published_content_or_404(db, content_id)
@@ -237,3 +287,101 @@ def get_my_bookmarks(db: Session, user: User) -> list[Content]:
     )
 
     return list(db.scalars(statement).all())
+
+
+def like_comment(db: Session, comment_id: str, user: User) -> None:
+    comment = get_comment_or_404(db, comment_id)
+
+    existing = db.scalars(
+        select(CommentLike).where(
+            CommentLike.comment_id == comment.id,
+            CommentLike.user_id == user.id,
+        )
+    ).first()
+
+    if existing:
+        return
+
+    db.add(CommentLike(comment_id=comment.id, user_id=user.id))
+    db.commit()
+
+
+def unlike_comment(db: Session, comment_id: str, user: User) -> None:
+    comment = get_comment_or_404(db, comment_id)
+
+    like = db.scalars(
+        select(CommentLike).where(
+            CommentLike.comment_id == comment.id,
+            CommentLike.user_id == user.id,
+        )
+    ).first()
+
+    if like:
+        db.delete(like)
+        db.commit()
+
+
+def create_comment(
+    db: Session,
+    content_id: str,
+    payload: CommentCreate,
+    user: User,
+) -> Comment:
+    content = get_published_content_or_404(db, content_id)
+
+    if payload.parent_id:
+        parent = db.get(Comment, payload.parent_id)
+
+        if not parent or parent.content_id != content_id or parent.is_hidden:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Parent comment is invalid.",
+            )
+
+    comment = Comment(
+        content_id=content_id,
+        user_id=user.id,
+        parent_id=payload.parent_id,
+        body=payload.body,
+    )
+
+    db.add(comment)
+
+    if content.author_id != user.id:
+        create_notification(
+            db=db,
+            user_id=content.author_id,
+            notification_type=NotificationType.COMMENT,
+            title="New comment on your content",
+            body=f"{user.full_name} commented on “{content.title}”.",
+        )
+
+    db.commit()
+    db.refresh(comment)
+
+    setattr(comment, "likes_count", 0)
+    setattr(comment, "liked_by_me", False)
+
+    return comment
+
+
+def list_comments(
+    db: Session,
+    content_id: str,
+    user: User | None = None,
+) -> list[Comment]:
+    get_published_content_or_404(db, content_id)
+
+    comments = list(
+        db.scalars(
+            select(Comment)
+            .options(joinedload(Comment.user))
+            .where(
+                Comment.content_id == content_id,
+                Comment.is_hidden == False,
+            )
+            .order_by(Comment.created_at.asc())
+        ).all()
+    )
+
+    return _attach_comment_meta(db, comments, user)

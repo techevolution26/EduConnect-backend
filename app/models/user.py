@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import enum
 from typing import List, Optional
 
@@ -16,6 +17,7 @@ class UserRole(str, enum.Enum):
     PARENT = "PARENT"
     MODERATOR = "MODERATOR"
     ADMIN = "ADMIN"
+    SUPER_ADMIN = "SUPER_ADMIN"
 
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -41,5 +43,15 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     contents: Mapped[List["Content"]] = relationship(
         back_populates="author",
+        cascade="all, delete-orphan",
+    )
+    comments: Mapped[List["Comment"]] = relationship(
+        "Comment",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    comment_likes: Mapped[List["CommentLike"]] = relationship(
+        "CommentLike",
+        back_populates="user",
         cascade="all, delete-orphan",
     )

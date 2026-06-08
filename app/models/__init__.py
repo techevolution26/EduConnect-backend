@@ -4,7 +4,7 @@ from app.models.user import User, UserRole
 from app.models.category import Category
 from app.models.hub import Hub, HubMember
 from app.models.content import Content, ContentStatus, ContentType, ContentVisibility
-from app.models.engagement import Bookmark, Comment, Follow, Like
+from app.models.engagement import Bookmark, Comment, Follow, Like, CommentLike
 from app.models.partnership import Partnership, PartnershipPlan, PartnershipStatus
 from app.models.education import (
     ChildrenAgeGroup,
