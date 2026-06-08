@@ -9,6 +9,8 @@ from app.schemas import content
 from app.schemas.engagement import CommentCreate
 from app.models.notification import NotificationType
 from app.services.notification_service import create_notification
+from app.schemas.engagement import EngagementStatus
+
 
 
 def get_published_content_or_404(db: Session, content_id: str) -> Content:
@@ -34,6 +36,36 @@ def get_comment_or_404(db: Session, comment_id: str) -> Comment:
     get_published_content_or_404(db, comment.content_id)
     return comment
 
+
+def get_content_engagement_status(
+    db: Session,
+    content_id: str,
+    user: User | None = None,
+) -> EngagementStatus:
+    get_published_content_or_404(db, content_id)
+
+    liked = False
+    bookmarked = False
+
+    if user:
+        liked = db.scalar(
+            select(Like.id).where(
+                Like.content_id == content_id,
+                Like.user_id == user.id,
+            )
+        ) is not None
+
+        bookmarked = db.scalar(
+            select(Bookmark.id).where(
+                Bookmark.content_id == content_id,
+                Bookmark.user_id == user.id,
+            )
+        ) is not None
+
+    return EngagementStatus(
+        liked=liked,
+        bookmarked=bookmarked,
+    )
 
 def _attach_comment_meta(
     db: Session,

@@ -8,7 +8,7 @@ from app.core.deps import get_current_user, get_optional_current_user
 from app.models.user import User
 from app.schemas.common import MessageResponse
 from app.schemas.content import ContentRead
-from app.schemas.engagement import CommentCreate, CommentRead
+from app.schemas.engagement import CommentCreate, CommentRead, EngagementStatus
 from app.services.engagement_service import (
     bookmark_content,
     create_comment,
@@ -22,11 +22,19 @@ from app.services.engagement_service import (
     unfollow_writer,
     unlike_comment,
     unlike_content,
+    get_content_engagement_status,
 )
 
 router = APIRouter(tags=["Engagement"])
 
 
+@router.get("/content/{content_id}/engagement", response_model=EngagementStatus)
+def get_content_engagement(
+    content_id: str,
+    current_user: Annotated[User | None, Depends(get_optional_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> EngagementStatus:
+    return get_content_engagement_status(db, content_id, current_user)
 
 @router.post("/content/{content_id}/bookmark", response_model=MessageResponse)
 def bookmark_existing_content(
