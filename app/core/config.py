@@ -22,7 +22,10 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         alias="BACKEND_CORS_ORIGINS",
     )
-
+    
+    upload_dir: str = Field(default="uploads", alias="UPLOAD_DIR")
+    public_base_url: str = Field(default="http://localhost:8000", alias="PUBLIC_BASE_URL")
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

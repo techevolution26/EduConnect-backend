@@ -9,18 +9,30 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.category import Category
 from app.models.hub import Hub
 from app.models.user import User
-
+from app.models.content_asset import ContentAsset
 
 class ContentType(str, enum.Enum):
     ARTICLE = "ARTICLE"
     STORY = "STORY"
+    FICTION = "FICTION"
     POEM = "POEM"
     FAITH = "FAITH"
     EDUCATION = "EDUCATION"
     CHILDREN = "CHILDREN"
     NEWS = "NEWS"
     AUDIO = "AUDIO"
-
+    WRITING_TIPS = "WRITING_TIPS"
+    SELF_IMPROVEMENT = "SELF_IMPROVEMENT"
+    RELATIONSHIP = "RELATIONSHIP"
+    MONEY_FINANCE = "MONEY_FINANCE"
+    MEDICINE = "MEDICINE"
+    PSYCHOLOGY = "PSYCHOLOGY"
+    MENTAL_HEALTH = "MENTAL_HEALTH"
+    HUMOR = "HUMOR"
+    WOMEN = "WOMEN"
+    FITNESS = "FITNESS"
+    SELF_AWARENESS = "SELF_AWARENESS"
+    PARENTING = "PARENTING"
 
 class ContentStatus(str, enum.Enum):
     DRAFT = "DRAFT"
@@ -84,7 +96,13 @@ class Content(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     author: Mapped["User"] = relationship(back_populates="contents")
     category: Mapped[Optional["Category"]] = relationship(back_populates="contents")
     hub: Mapped[Optional["Hub"]] = relationship(back_populates="contents")
-
+    
+    assets: Mapped[List["ContentAsset"]] = relationship(
+    "ContentAsset",
+    back_populates="content",
+    cascade="all, delete-orphan",
+    
+    )
     comments: Mapped[List["Comment"]] = relationship(
         "Comment",
         back_populates="content",

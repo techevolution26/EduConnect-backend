@@ -1,7 +1,7 @@
 from select import select
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -9,6 +9,7 @@ from app.core.deps import get_current_user, get_optional_current_user
 from app.models.moderation import ModerationLog
 from app.models.user import User
 from app.schemas.content import (
+    ContentAssetRead,
     ContentCreate,
     ContentDetailRead,
     ContentListResponse,
@@ -18,6 +19,7 @@ from app.schemas.content import (
     )
 from app.schemas.moderation import ModerationLogRead
 from app.services.content_service import (
+    add_content_assets,
     build_content_access_response,
     create_content,
     delete_content,
@@ -138,6 +140,13 @@ def get_content_detail(
         user=current_user,
     )
 
+@router.get("/{content_id}", response_model=ContentDetailRead)
+def get_content_detail_route(
+    content_id: str,
+    db: Annotated[Session, Depends(get_db)],
+) -> ContentDetailRead:
+    return get_content_detail(db, content_id)
+
 
 @router.patch("/{content_id}", response_model=ContentRead)
 def update_existing_content(
@@ -174,4 +183,21 @@ def submit_for_review(
         db=db,
         content_id=content_id,
         user=current_user,
+    )
+
+
+@router.post("/{content_id}/assets", response_model=list[ContentAssetRead], status_code=status.HTTP_201_CREATED)
+async def upload_content_assets(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    images: list[UploadFile] = File(default_factory=list),
+    files: list[UploadFile] = File(default_factory=list),
+) -> list[ContentAssetRead]:
+    return await add_content_assets(
+        db=db,
+        content_id=content_id,
+        user=current_user,
+        images=images,
+        files=files,
     )

@@ -6,6 +6,7 @@ from app.models.hub import Hub, HubMember
 from app.models.content import Content, ContentStatus, ContentType, ContentVisibility
 from app.models.engagement import Bookmark, Comment, Follow, Like, CommentLike
 from app.models.partnership import Partnership, PartnershipPlan, PartnershipStatus
+from app.models.content_asset import ContentAsset, ContentAssetType
 from app.models.education import (
     ChildrenAgeGroup,
     ChildrenContent,

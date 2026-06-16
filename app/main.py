@@ -1,7 +1,10 @@
 from fastapi import FastAPI
+import pathlib
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from app.core.config import get_settings
+from app.core.storage import resolve_upload_dir
 from app.routers import (
     admin,
     auth,
@@ -22,7 +25,8 @@ from app.routers import (
 )
 
 settings = get_settings()
-
+upload_path = resolve_upload_dir()
+    
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
@@ -36,6 +40,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/uploads", StaticFiles(directory=str(upload_path)), name="uploads")
 
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")

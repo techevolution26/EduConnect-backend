@@ -9,6 +9,20 @@ from app.schemas.hub import HubRead
 from app.schemas.user import UserRead
 
 
+class ContentAssetRead(BaseModel):
+    id: str
+    content_id: str
+    asset_type: str
+    url: str
+    filename: Optional[str] = None
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+    
+    
 class ContentCreate(BaseModel):
     title: str = Field(min_length=3, max_length=220)
     slug: str = Field(min_length=3, max_length=260)
@@ -69,6 +83,7 @@ class ContentDetailRead(ContentRead):
     author: UserRead
     category: Optional[CategoryRead]
     hub: Optional[HubRead]
+    assets: list[ContentAssetRead] = []
 
 
 class ContentRejectRequest(BaseModel):

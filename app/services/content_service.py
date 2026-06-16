@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.storage import save_upload_file
 from app.models.content import Content, ContentStatus, ContentVisibility
+from app.models.content_asset import ContentAsset, ContentAssetType
 from app.models.moderation import ModerationAction, ModerationLog
 from app.models.user import User, UserRole
 from app.schemas.content import ContentCreate, ContentUpdate
@@ -55,6 +57,7 @@ def get_content_by_slug_or_404(db: Session, slug: str) -> Content:
             joinedload(Content.author),
             joinedload(Content.category),
             joinedload(Content.hub),
+            joinedload(Content.assets),
         )
         .where(
             Content.slug == slug,
@@ -340,6 +343,7 @@ def build_content_access_response(
         "author": content.author,
         "category": content.category,
         "hub": content.hub,
+        "assets": content.assets,
         "requires_partnership": requires_partnership,
         "has_access": has_access,
         "preview_body": content.body[:320] if not has_access else None,
@@ -379,9 +383,23 @@ def list_my_content(
 def get_my_content_or_404(db: Session, content_id: str, user: User) -> Content:
     ensure_can_write_content(user)
 
-    content = db.get(Content, content_id)
+    statement = (
+        select(Content)
+        .options(
+            joinedload(Content.author),
+            joinedload(Content.category),
+            joinedload(Content.hub),
+            joinedload(Content.assets),
+        )
+        .where(
+            Content.id == content_id,
+            Content.author_id == user.id,
+        )
+    )
 
-    if not content or content.author_id != user.id:
+    content = db.scalars(statement).first()
+
+    if not content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Content was not found.",
@@ -533,5 +551,72 @@ def toggle_featured_content(
     db.add(content)
     db.commit()
     db.refresh(content)
+
+    return content
+
+async def add_content_assets(
+    db: Session,
+    content_id: str,
+    user: User,
+    images: list[UploadFile],
+    files: list[UploadFile],
+) -> list[ContentAsset]:
+    content = get_content_or_404(db, content_id)
+    ensure_content_owner_or_admin(content, user)
+
+    created_assets: list[ContentAsset] = []
+
+    for image in images:
+        url = await save_upload_file(image, "images")
+        asset = ContentAsset(
+            content_id=content.id,
+            asset_type=ContentAssetType.IMAGE,
+            url=url,
+            filename=image.filename,
+            mime_type=image.content_type,
+            size_bytes=None,
+        )
+        db.add(asset)
+        created_assets.append(asset)
+
+    for file in files:
+        url = await save_upload_file(file, "files")
+        asset = ContentAsset(
+            content_id=content.id,
+            asset_type=ContentAssetType.FILE,
+            url=url,
+            filename=file.filename,
+            mime_type=file.content_type,
+            size_bytes=None,
+        )
+        db.add(asset)
+        created_assets.append(asset)
+
+    db.commit()
+
+    for asset in created_assets:
+        db.refresh(asset)
+
+    return created_assets
+
+def get_content_detail(db: Session, content_id: str) -> Content:
+    statement = (
+        select(Content)
+        .options(
+            joinedload(Content.author),
+            joinedload(Content.category),
+            joinedload(Content.hub),
+            joinedload(Content.assets),
+        )
+        .where(Content.id == content_id)
+    )
+
+    content = db.scalars(statement).first()
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content was not found.",
+        )
 
     return content
