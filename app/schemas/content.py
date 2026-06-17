@@ -56,6 +56,7 @@ class ContentUpdate(BaseModel):
 class ContentRead(BaseModel):
     id: str
     author_id: str
+    author: Optional[UserRead] = None
     category_id: Optional[str]
     hub_id: Optional[str]
 
