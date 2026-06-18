@@ -40,3 +40,18 @@ async def save_upload_file(file: UploadFile, folder: str) -> str:
 
     settings = get_settings()
     return f"{settings.public_base_url}/uploads/{folder}/{filename}"
+
+
+def normalize_public_url(path_or_url: str | None) -> str | None:
+    if not path_or_url:
+        return None
+
+    value = path_or_url.strip()
+    if not value:
+        return None
+
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+
+    settings = get_settings()
+    return f"{settings.public_base_url}/{value.lstrip('/')}"

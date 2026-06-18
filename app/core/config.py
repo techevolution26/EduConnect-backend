@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,8 +13,10 @@ class Settings(BaseSettings):
     database_url: str = Field(..., alias="DATABASE_URL")
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+
+    # 7 days
     access_token_expire_minutes: int = Field(
-        default=1440,
+        default=60 * 24 * 7,
         alias="ACCESS_TOKEN_EXPIRE_MINUTES",
     )
 
@@ -22,10 +24,13 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         alias="BACKEND_CORS_ORIGINS",
     )
-    
-    upload_dir: str = Field(default="uploads", alias="UPLOAD_DIR")
-    public_base_url: str = Field(default="http://localhost:8000", alias="PUBLIC_BASE_URL")
-    
+
+    upload_dir: str = Field(default="/data/uploads", alias="UPLOAD_DIR")
+    public_base_url: str = Field(
+        default="http://localhost:8000",
+        alias="PUBLIC_BASE_URL",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -40,6 +45,11 @@ class Settings(BaseSettings):
             for origin in self.backend_cors_origins.split(",")
             if origin.strip()
         ]
+
+    @field_validator("public_base_url")
+    @classmethod
+    def normalize_public_base_url(cls, value: str) -> str:
+        return value.rstrip("/")
 
 
 @lru_cache

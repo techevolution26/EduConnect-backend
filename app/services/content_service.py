@@ -4,7 +4,7 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.storage import save_upload_file
+from app.core.storage import normalize_public_url, save_upload_file
 from app.models.content import Content, ContentStatus, ContentVisibility
 from app.models.content_asset import ContentAsset, ContentAssetType
 from app.models.moderation import ModerationAction, ModerationLog
@@ -80,7 +80,6 @@ def create_content(db: Session, payload: ContentCreate, author: User) -> Content
     ensure_can_write_content(author)
 
     existing = db.scalars(select(Content).where(Content.slug == payload.slug)).first()
-
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -98,7 +97,7 @@ def create_content(db: Session, payload: ContentCreate, author: User) -> Content
         is_premium=payload.is_premium,
         category_id=payload.category_id,
         hub_id=payload.hub_id,
-        cover_image_url=payload.cover_image_url,
+        cover_image_url=normalize_public_url(payload.cover_image_url),
         status=ContentStatus.DRAFT,
         reading_time_minutes=calculate_reading_time_minutes(payload.body),
     )
@@ -140,6 +139,9 @@ def update_content(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Content slug already exists.",
             )
+
+    if "cover_image_url" in update_data:
+        update_data["cover_image_url"] = normalize_public_url(update_data["cover_image_url"])
 
     for field, value in update_data.items():
         setattr(content, field, value)
@@ -553,6 +555,8 @@ def toggle_featured_content(
     db.refresh(content)
 
     return content
+
+
 
 async def add_content_assets(
     db: Session,
