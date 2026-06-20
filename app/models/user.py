@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.read_session import ContentReadSession
 
 
 class UserRole(str, enum.Enum):
@@ -33,10 +34,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Enum(UserRole),
         default=UserRole.READER,
         nullable=False,
+        index=True,
     )
 
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
-    bio: Mapped[Optional[str]] = mapped_column(Text)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -52,6 +54,23 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     comment_likes: Mapped[List["CommentLike"]] = relationship(
         "CommentLike",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    partnerships: Mapped[List["Partnership"]] = relationship(
+        "Partnership",
+        foreign_keys="Partnership.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    referral_partnerships: Mapped[List["Partnership"]] = relationship(
+        "Partnership",
+        foreign_keys="Partnership.referral_creator_id",
+        back_populates="referral_creator",
+    )
+    read_sessions: Mapped[List["ContentReadSession"]] = relationship(
+        "ContentReadSession",
         back_populates="user",
         cascade="all, delete-orphan",
     )

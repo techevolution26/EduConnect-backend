@@ -25,7 +25,7 @@ router = APIRouter(prefix="/partnerships", tags=["Partnerships"])
 
 
 @router.get("/plans", response_model=list[PartnershipPlanRead])
-def get_partnership_plans() -> list[PartnershipPlanRead]:
+def get_partnership_plans() -> list[dict]:
     return list_partnership_plans()
 
 

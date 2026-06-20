@@ -14,15 +14,15 @@ from app.services.engagement_service import (
     create_comment,
     follow_writer,
     get_content_counts,
+    get_content_engagement_status,
     get_my_bookmarks,
-    like_comment,
+    # like_comment,
     like_content,
     list_comments,
     remove_bookmark,
     unfollow_writer,
-    unlike_comment,
+    # unlike_comment,
     unlike_content,
-    get_content_engagement_status,
 )
 
 router = APIRouter(tags=["Engagement"])
@@ -35,6 +35,35 @@ def get_content_engagement(
     db: Annotated[Session, Depends(get_db)],
 ) -> EngagementStatus:
     return get_content_engagement_status(db, content_id, current_user)
+
+
+@router.get("/content/{content_id}/counts")
+def get_existing_content_counts(
+    content_id: str,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, int]:
+    return get_content_counts(db, content_id)
+
+
+@router.post("/content/{content_id}/like", response_model=MessageResponse)
+def like_existing_content(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> MessageResponse:
+    like_content(db, content_id, current_user)
+    return MessageResponse(message="Content liked successfully.")
+
+
+@router.delete("/content/{content_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+def unlike_existing_content(
+    content_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    unlike_content(db, content_id, current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 @router.post("/content/{content_id}/bookmark", response_model=MessageResponse)
 def bookmark_existing_content(
@@ -95,22 +124,6 @@ def unlike_existing_comment(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/content/{content_id}/counts")
-def get_existing_content_counts(
-    content_id: str,
-    db: Annotated[Session, Depends(get_db)],
-) -> dict[str, int]:
-    return get_content_counts(db, content_id)
-
-
-@router.get("/users/me/bookmarks", response_model=list[ContentRead])
-def get_my_saved_content(
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-) -> list[ContentRead]:
-    return get_my_bookmarks(db, current_user)
-
-
 @router.post("/writers/{writer_id}/follow", response_model=MessageResponse)
 def follow_existing_writer(
     writer_id: str,
@@ -130,21 +143,10 @@ def unfollow_existing_writer(
     unfollow_writer(db, writer_id, current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@router.post("/content/{content_id}/like", response_model=MessageResponse)
-def like_existing_content(
-    content_id: str,
+
+@router.get("/users/me/bookmarks", response_model=list[ContentRead])
+def get_my_saved_content(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-) -> MessageResponse:
-    like_content(db, content_id, current_user)
-    return MessageResponse(message="Content liked successfully.")
-
-
-@router.delete("/content/{content_id}/like", status_code=status.HTTP_204_NO_CONTENT)
-def unlike_existing_content(
-    content_id: str,
-    current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-) -> Response:
-    unlike_content(db, content_id, current_user)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+) -> list[ContentRead]:
+    return get_my_bookmarks(db, current_user)

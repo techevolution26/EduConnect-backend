@@ -6,7 +6,6 @@ from app.models.content import Content, ContentStatus
 from app.models.engagement import Follow
 from app.models.user import User, UserRole
 
-
 WRITER_ROLES = {
     UserRole.WRITER,
     UserRole.TEACHER,
@@ -31,14 +30,30 @@ def get_writer_or_404(db: Session, writer_id: str) -> User:
     return writer
 
 
-def get_writer_stats(db: Session, writer_id: str) -> dict[str, int]:
-    followers_count = db.scalar(
-        select(func.count())
-        .select_from(Follow)
-        .where(Follow.following_id == writer_id)
+def get_writer_stats(db: Session, writer_id: str) -> dict[str, int | float]:
+    total_content = db.scalar(
+        select(func.count()).select_from(Content).where(Content.author_id == writer_id)
     ) or 0
 
-    published_count = db.scalar(
+    drafts = db.scalar(
+        select(func.count())
+        .select_from(Content)
+        .where(
+            Content.author_id == writer_id,
+            Content.status == ContentStatus.DRAFT,
+        )
+    ) or 0
+
+    pending = db.scalar(
+        select(func.count())
+        .select_from(Content)
+        .where(
+            Content.author_id == writer_id,
+            Content.status == ContentStatus.PENDING_REVIEW,
+        )
+    ) or 0
+
+    published = db.scalar(
         select(func.count())
         .select_from(Content)
         .where(
@@ -47,9 +62,47 @@ def get_writer_stats(db: Session, writer_id: str) -> dict[str, int]:
         )
     ) or 0
 
+    rejected = db.scalar(
+        select(func.count())
+        .select_from(Content)
+        .where(
+            Content.author_id == writer_id,
+            Content.status == ContentStatus.REJECTED,
+        )
+    ) or 0
+
+    followers_count = db.scalar(
+        select(func.count())
+        .select_from(Follow)
+        .where(Follow.following_id == writer_id)
+    ) or 0
+
+    # Placeholders for now until qualified-read / payout tables are wired.
+    likes_received = 0
+    comments_received = 0
+    bookmarks_received = 0
+    qualified_reads = 0
+    estimated_partner_reads = 0
+
+    estimated_earnings_total = 0.0
+    estimated_earnings_pending = 0.0
+    estimated_monthly_earnings = 0.0
+
     return {
-        "followers_count": followers_count,
-        "published_count": published_count,
+        "total_content": total_content,
+        "drafts": drafts,
+        "pending": pending,
+        "published": published,
+        "rejected": rejected,
+        "followers": followers_count,
+        "likes_received": likes_received,
+        "comments_received": comments_received,
+        "bookmarks_received": bookmarks_received,
+        "qualified_reads": qualified_reads,
+        "estimated_partner_reads": estimated_partner_reads,
+        "estimated_earnings_total": estimated_earnings_total,
+        "estimated_earnings_pending": estimated_earnings_pending,
+        "estimated_monthly_earnings": estimated_monthly_earnings,
     }
 
 
@@ -100,12 +153,10 @@ def list_writer_content(
     return items, total
 
 
-
 def get_writer_relationship(db: Session, writer_id: str, user: User) -> dict:
     writer = get_writer_or_404(db, writer_id)
 
     is_self = writer.id == user.id
-
     following = False
 
     if not is_self:

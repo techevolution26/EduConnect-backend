@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.models.content import ContentStatus, ContentType, ContentVisibility
 from app.schemas.category import CategoryRead
@@ -20,9 +20,9 @@ class ContentAssetRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
-    
-    
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ContentCreate(BaseModel):
     title: str = Field(min_length=3, max_length=220)
     slug: str = Field(min_length=3, max_length=260)
@@ -71,20 +71,21 @@ class ContentRead(BaseModel):
     visibility: ContentVisibility
     is_premium: bool
     reading_time_minutes: int
+    views_count: int = 0
     is_featured: bool = False
     featured_at: datetime | None = None
     published_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContentDetailRead(ContentRead):
     author: UserRead
-    category: Optional[CategoryRead]
-    hub: Optional[HubRead]
-    assets: list[ContentAssetRead] = []
+    category: Optional[CategoryRead] = None
+    hub: Optional[HubRead] = None
+    assets: list[ContentAssetRead] = Field(default_factory=list)
 
 
 class ContentRejectRequest(BaseModel):

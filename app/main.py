@@ -22,6 +22,7 @@ from app.routers import (
     search,
     users,
     writers,
+    read_session
 )
 
 settings = get_settings()
@@ -59,3 +60,4 @@ app.include_router(partnerships.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(role_requests.router, prefix="/api/v1")
+app.include_router(read_session.router, prefix="/api/v1")

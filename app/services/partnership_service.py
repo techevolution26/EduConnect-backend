@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.models.partnership import Partnership, PartnershipPlan, PartnershipStatus
 from app.models.user import User
 
-
 PARTNERSHIP_PLANS = [
     {
         "plan": PartnershipPlan.FREE,
@@ -42,28 +41,51 @@ PARTNERSHIP_PLANS = [
 ]
 
 
+PAID_PARTNERSHIP_PLANS = {
+    PartnershipPlan.MONTHLY_PARTNER,
+    PartnershipPlan.ANNUAL_PARTNER,
+    PartnershipPlan.STUDENT_PARTNER,
+    PartnershipPlan.TEACHER_PARTNER,
+}
+
+
 def list_partnership_plans() -> list[dict]:
     return PARTNERSHIP_PLANS
+
+
+def _mark_expired_if_needed(db: Session, partnership: Partnership, now: datetime) -> None:
+    if (
+        partnership.status == PartnershipStatus.ACTIVE
+        and partnership.expires_at is not None
+        and partnership.expires_at <= now
+    ):
+        partnership.status = PartnershipStatus.EXPIRED
+        db.add(partnership)
+        db.commit()
+        db.refresh(partnership)
 
 
 def get_active_partnership(db: Session, user_id: str) -> Partnership | None:
     now = datetime.now(timezone.utc)
 
-    return db.scalars(
+    partnership = db.scalars(
         select(Partnership).where(
             Partnership.user_id == user_id,
             Partnership.status == PartnershipStatus.ACTIVE,
+            Partnership.plan.in_(list(PAID_PARTNERSHIP_PLANS)),
+            Partnership.expires_at.is_not(None),
             Partnership.expires_at > now,
         )
     ).first()
+
+    return partnership
 
 
 def user_has_active_partnership(db: Session, user: User | None) -> bool:
     if not user:
         return False
 
-    active = get_active_partnership(db, user.id)
-    return active is not None
+    return get_active_partnership(db, user.id) is not None
 
 
 def get_my_partnership_access(db: Session, user: User):

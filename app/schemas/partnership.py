@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.models.partnership import PartnershipPlan, PartnershipStatus
 
@@ -23,15 +23,15 @@ class PartnershipRead(BaseModel):
     user_id: str
     plan: PartnershipPlan
     status: PartnershipStatus
-    referral_creator_id: Optional[str]
-    provider: Optional[str]
-    provider_reference: Optional[str]
-    started_at: Optional[datetime]
-    expires_at: Optional[datetime]
+    referral_creator_id: Optional[str] = None
+    provider: Optional[str] = None
+    provider_reference: Optional[str] = None
+    started_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PartnershipAccessRead(BaseModel):
