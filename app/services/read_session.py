@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -13,6 +13,25 @@ from app.models.user import User
 
 QUALIFIED_SCROLL_THRESHOLD = 70
 QUALIFIED_TIME_RATIO = 0.65
+VIEW_COOLDOWN_HOURS = 24
+
+def _should_count_view(
+    db: Session,
+    content_id: str,
+    user_id: str,
+    now: datetime,
+) -> bool:
+    cutoff = now - timedelta(hours=VIEW_COOLDOWN_HOURS)
+
+    recent_session = db.scalars(
+        select(ContentReadSession).where(
+            ContentReadSession.content_id == content_id,
+            ContentReadSession.user_id == user_id,
+            ContentReadSession.started_at >= cutoff,
+        )
+    ).first()
+
+    return recent_session is None
 
 
 def _now() -> datetime:
@@ -49,8 +68,9 @@ def start_read_session(db: Session, content_id: str, user: User) -> ContentReadS
         db.refresh(existing)
         return existing
 
-    content.views_count = (content.views_count or 0) + 1
-    db.add(content)
+    if _should_count_view(db, content_id, user.id, now):
+        content.views_count = (content.views_count or 0) + 1
+        db.add(content)
 
     session = ContentReadSession(
         content_id=content_id,
