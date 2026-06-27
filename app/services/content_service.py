@@ -353,7 +353,7 @@ def build_content_access_response(
 
     return data
 
-def list_my_content(
+def get_my_content(
     db: Session,
     user: User,
     skip: int = 0,
@@ -381,6 +381,9 @@ def list_my_content(
     total = db.scalar(count_statement) or 0
 
     return items, total
+
+
+list_my_content = get_my_content
 
 def get_my_content_or_404(db: Session, content_id: str, user: User) -> Content:
     ensure_can_write_content(user)

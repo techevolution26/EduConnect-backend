@@ -25,7 +25,7 @@ from app.services.content_service import (
     delete_content,
     get_content_by_slug_or_404,
     get_content_detail,
-    # get_my_content,
+    get_my_content,
     get_my_content_or_404,
     get_my_writer_analytics,
     list_my_content_moderation_logs,
