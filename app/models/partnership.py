@@ -8,6 +8,7 @@ from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.partnership_payment import PartnershipPayment
 
 
 class PartnershipPlan(str, enum.Enum):
@@ -68,3 +69,9 @@ class Partnership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         foreign_keys=[referral_creator_id],
         back_populates="referral_partnerships",
     )
+
+    payments: Mapped[list["PartnershipPayment"]] = relationship(
+    "PartnershipPayment",
+    back_populates="partnership",
+    cascade="all, delete-orphan",
+)

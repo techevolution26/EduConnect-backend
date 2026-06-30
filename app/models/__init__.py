@@ -23,3 +23,8 @@ from app.models.moderation import (
 from app.models.notification import Notification, NotificationType
 from app.models.role_request import RoleUpgradeRequest
 from app.models.read_session import ContentReadSession
+from app.models.partnership_payment import (
+    PartnershipPayment,
+    PaymentProvider,
+    PaymentStatus,
+)

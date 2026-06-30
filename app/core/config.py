@@ -31,6 +31,21 @@ class Settings(BaseSettings):
         alias="PUBLIC_BASE_URL",
     )
 
+    mpesa_environment: str = Field(default="sandbox", alias="MPESA_ENVIRONMENT")
+    mpesa_consumer_key: str = Field(default="", alias="MPESA_CONSUMER_KEY")
+    mpesa_consumer_secret: str = Field(default="", alias="MPESA_CONSUMER_SECRET")
+    mpesa_shortcode: str = Field(default="", alias="MPESA_SHORTCODE")
+    mpesa_passkey: str = Field(default="", alias="MPESA_PASSKEY")
+    mpesa_callback_url: str = Field(default="", alias="MPESA_CALLBACK_URL")
+    mpesa_account_reference: str = Field(
+        default="EduConnect",
+        alias="MPESA_ACCOUNT_REFERENCE",
+    )
+    mpesa_transaction_desc: str = Field(
+        default="EduConnect Partnership",
+        alias="MPESA_TRANSACTION_DESC",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

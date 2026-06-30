@@ -9,13 +9,13 @@ from app.models.content import Content, ContentStatus, ContentVisibility
 from app.models.content_asset import ContentAsset, ContentAssetType
 from app.models.moderation import ModerationAction, ModerationLog
 from app.models.user import User, UserRole
-from app.schemas.content import ContentCreate, ContentUpdate
+from app.schemas.content import ContentAccessRead, ContentCreate, ContentUpdate
 from app.services.partnership_service import user_has_active_partnership
 from app.models.notification import NotificationType
 from app.services.notification_service import create_notification
 from app.models.moderation import ModerationLog
 from app.models.engagement import Bookmark, Comment, Follow, Like
-from datetime import datetime, timezone
+
 
 def calculate_reading_time_minutes(body: str) -> int:
     words = len(body.split())
@@ -316,42 +316,47 @@ def content_requires_partnership(content: Content) -> bool:
 def build_content_access_response(
     db: Session,
     content: Content,
-    user: User | None,
-) -> dict:
-    requires_partnership = content_requires_partnership(content)
+    user: User | None = None,
+) -> ContentAccessRead:
+    premium_locked = content.visibility == ContentVisibility.PARTNERS_ONLY or content.is_premium
+
     has_access = True
+    preview_body = None
+    requires_partnership = premium_locked
 
-    if requires_partnership:
+    if premium_locked:
         has_access = user_has_active_partnership(db, user)
+        if not has_access:
+            preview_body = content.excerpt or content.body[:400]
 
-    data = {
-        "id": content.id,
-        "author_id": content.author_id,
-        "category_id": content.category_id,
-        "hub_id": content.hub_id,
-        "title": content.title,
-        "slug": content.slug,
-        "excerpt": content.excerpt,
-        "body": content.body if has_access else "",
-        "cover_image_url": content.cover_image_url,
-        "content_type": content.content_type,
-        "status": content.status,
-        "visibility": content.visibility,
-        "is_premium": content.is_premium,
-        "reading_time_minutes": content.reading_time_minutes,
-        "published_at": content.published_at,
-        "created_at": content.created_at,
-        "updated_at": content.updated_at,
-        "author": content.author,
-        "category": content.category,
-        "hub": content.hub,
-        "assets": content.assets,
-        "requires_partnership": requires_partnership,
-        "has_access": has_access,
-        "preview_body": content.body[:320] if not has_access else None,
-    }
-
-    return data
+    return ContentAccessRead(
+        id=content.id,
+        author_id=content.author_id,
+        author=content.author,
+        category_id=content.category_id,
+        hub_id=content.hub_id,
+        title=content.title,
+        slug=content.slug,
+        excerpt=content.excerpt,
+        body=content.body if has_access else "",
+        cover_image_url=content.cover_image_url,
+        content_type=content.content_type,
+        status=content.status,
+        visibility=content.visibility,
+        is_premium=content.is_premium,
+        reading_time_minutes=content.reading_time_minutes,
+        is_featured=content.is_featured,
+        featured_at=content.featured_at,
+        published_at=content.published_at,
+        created_at=content.created_at,
+        updated_at=content.updated_at,
+        category=content.category,
+        hub=content.hub,
+        assets=content.assets,
+        requires_partnership=requires_partnership,
+        has_access=has_access,
+        preview_body=preview_body,
+    )
 
 def get_my_content(
     db: Session,

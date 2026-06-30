@@ -38,6 +38,9 @@ class ContentType(str, enum.Enum):
     SELF_AWARENESS = "SELF_AWARENESS"
     PARENTING = "PARENTING"
     TECHNOLOGY = "TECHNOLOGY"
+    SCIENCE = "SCIENCE"
+    CARS = "CARS"
+
 
 
 class ContentStatus(str, enum.Enum):
