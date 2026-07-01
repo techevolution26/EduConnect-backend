@@ -32,7 +32,7 @@ PARTNERSHIP_PLANS = [
         "description": "Monthly support for writers, education, and community content.",
         "recommended_for": "Regular readers and supporters.",
         "price_kes": 300,
-        "duration_days": 1,
+        "duration_days": 30,
         "allows_premium_content": True,
     },
     {
