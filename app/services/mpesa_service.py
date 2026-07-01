@@ -39,6 +39,7 @@ def mpesa_base_url() -> str:
 
 
 async def get_access_token() -> str:
+    import httpx
     settings = get_settings()
 
     if not settings.mpesa_consumer_key or not settings.mpesa_consumer_secret:
