@@ -31,6 +31,8 @@ class Settings(BaseSettings):
         alias="PUBLIC_BASE_URL",
     )
 
+
+    payment_mode: str = Field(default="stub", alias="PAYMENT_MODE")
     mpesa_environment: str = Field(default="sandbox", alias="MPESA_ENVIRONMENT")
     mpesa_consumer_key: str = Field(default="", alias="MPESA_CONSUMER_KEY")
     mpesa_consumer_secret: str = Field(default="", alias="MPESA_CONSUMER_SECRET")

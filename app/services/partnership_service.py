@@ -170,6 +170,88 @@ def _get_or_create_pending_partnership(
     return partnership
 
 
+# async def start_partnership_checkout(
+#     db: Session,
+#     user: User,
+#     plan: PartnershipPlan,
+#     phone_number: str,
+#     referral_creator_id: str | None = None,
+# ) -> dict:
+#     meta = get_plan_meta(plan)
+
+#     if plan == PartnershipPlan.FREE:
+#         partnership = Partnership(
+#             user_id=user.id,
+#             plan=plan,
+#             status=PartnershipStatus.ACTIVE,
+#             started_at=_now(),
+#             expires_at=None,
+#             referral_creator_id=referral_creator_id,
+#         )
+#         db.add(partnership)
+#         db.commit()
+#         db.refresh(partnership)
+
+#         return {
+#             "partnership": partnership,
+#             "payment": None,
+#             "message": "Free access activated.",
+#         }
+
+#     normalized_phone = normalize_phone_number(phone_number)
+#     if len(normalized_phone) != 12 or not normalized_phone.startswith("254"):
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="Enter a valid Kenyan phone number.",
+#         )
+
+#     partnership = _get_or_create_pending_partnership(
+#         db=db,
+#         user=user,
+#         plan=plan,
+#         referral_creator_id=referral_creator_id,
+#     )
+
+#     payment = PartnershipPayment(
+#         partnership_id=partnership.id,
+#         user_id=user.id,
+#         provider=PaymentProvider.MPESA,
+#         status=PaymentStatus.INITIATED,
+#         plan=plan.value,
+#         amount=int(meta["price_kes"]),
+#         currency="KES",
+#         phone_number=normalized_phone,
+#         requested_at=_now(),
+#     )
+#     db.add(payment)
+#     db.commit()
+#     db.refresh(payment)
+
+#     stk_response = await stk_push(
+#         phone_number=normalized_phone,
+#         amount=int(meta["price_kes"]),
+#         account_reference=get_settings().mpesa_account_reference,
+#         transaction_desc=get_settings().mpesa_transaction_desc,
+#     )
+
+#     payment.status = PaymentStatus.PENDING
+#     payment.merchant_request_id = stk_response.get("MerchantRequestID")
+#     payment.checkout_request_id = stk_response.get("CheckoutRequestID")
+#     payment.raw_request = stk_response
+
+#     db.add(payment)
+#     db.commit()
+#     db.refresh(payment)
+
+#     return {
+#         "partnership": partnership,
+#         "payment": payment,
+#         "message": "STK push sent. Complete payment on your phone.",
+#     }
+
+
+
+
 async def start_partnership_checkout(
     db: Session,
     user: User,
@@ -226,6 +308,24 @@ async def start_partnership_checkout(
     db.add(payment)
     db.commit()
     db.refresh(payment)
+
+    settings = get_settings()
+
+    if settings.payment_mode.lower() != "mpesa":
+        payment.status = PaymentStatus.PENDING
+        payment.raw_request = {
+            "mode": "stub",
+            "message": "M-Pesa checkout disabled until production shortcode is acquired.",
+        }
+        db.add(payment)
+        db.commit()
+        db.refresh(payment)
+
+        return {
+            "partnership": partnership,
+            "payment": payment,
+            "message": "Checkout recorded. M-Pesa is temporarily disabled in this environment.",
+        }
 
     stk_response = await stk_push(
         phone_number=normalized_phone,
