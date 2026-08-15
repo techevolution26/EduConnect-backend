@@ -16,12 +16,12 @@ from app.services.engagement_service import (
     get_content_counts,
     get_content_engagement_status,
     get_my_bookmarks,
-    # like_comment,
+    like_comment,
     like_content,
     list_comments,
     remove_bookmark,
     unfollow_writer,
-    # unlike_comment,
+    unlike_comment,
     unlike_content,
 )
 

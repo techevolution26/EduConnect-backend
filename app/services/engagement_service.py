@@ -393,3 +393,33 @@ def get_content_detail(db: Session, content_id: str) -> Content:
         )
 
     return content
+
+def like_comment(db: Session, comment_id: str, user: User) -> None:
+    comment = get_comment_or_404(db, comment_id)
+
+    existing = db.scalars(
+        select(CommentLike).where(
+            CommentLike.comment_id == comment.id,
+            CommentLike.user_id == user.id,
+        )
+    ).first()
+
+    if existing:
+        return
+
+    db.add(CommentLike(comment_id=comment.id, user_id=user.id))
+    db.commit()
+
+def unlike_comment(db: Session, comment_id: str, user: User) -> None:
+    comment = get_comment_or_404(db, comment_id)
+
+    like = db.scalars(
+        select(CommentLike).where(
+            CommentLike.comment_id == comment.id,
+            CommentLike.user_id == user.id,
+        )
+    ).first()
+
+    if like:
+        db.delete(like)
+        db.commit()
