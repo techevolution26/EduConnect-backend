@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, require_permission
+from app.core.permissions import Permission
 from app.models.role_request import RoleRequestStatus
 from app.models.user import User
 from app.schemas.role_request import (
@@ -49,7 +50,7 @@ def get_my_role_requests(
 
 @router.get("/admin", response_model=RoleUpgradeRequestListResponse)
 def get_admin_role_requests(
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.ROLE_REQUESTS_REVIEW))],
     db: Annotated[Session, Depends(get_db)],
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
@@ -69,7 +70,7 @@ def get_admin_role_requests(
 def approve_admin_role_request(
     request_id: str,
     payload: RoleUpgradeRequestReview,
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.ROLE_REQUESTS_REVIEW))],
     db: Annotated[Session, Depends(get_db)],
 ) -> RoleUpgradeRequestDetailRead:
     return approve_role_request(
@@ -84,7 +85,7 @@ def approve_admin_role_request(
 def reject_admin_role_request(
     request_id: str,
     payload: RoleUpgradeRequestReview,
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.ROLE_REQUESTS_REVIEW))],
     db: Annotated[Session, Depends(get_db)],
 ) -> RoleUpgradeRequestDetailRead:
     return reject_role_request(

@@ -74,3 +74,23 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    # Scoped admin permissions (see core/permissions.py for how these are
+    # interpreted -- only relevant when role == ADMIN; SUPER_ADMIN bypasses
+    # this table entirely and effectively has every permission).
+    admin_permissions: Mapped[List["AdminPermission"]] = relationship(
+        "AdminPermission",
+        foreign_keys="AdminPermission.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # One-to-one student identity (school affiliation, curriculum, grade).
+    # Only populated for users pursuing student verification; absence of a
+    # row simply means "not a verified student" -- see models/student.py.
+    student_profile: Mapped[Optional["StudentProfile"]] = relationship(
+        "StudentProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

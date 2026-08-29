@@ -2,10 +2,12 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.permissions import STAFF_ROLES, Permission
 from app.models.category import Category
 from app.models.content import Content, ContentStatus
 from app.models.hub import Hub
 from app.models.partnership import Partnership, PartnershipStatus
+from app.models.permission import AdminPermission
 from app.models.user import User, UserRole
 from app.models.content import ContentType
 
@@ -79,6 +81,7 @@ def get_admin_dashboard_stats(db: Session) -> dict:
         "total_parents": count_users_by_role(db, UserRole.PARENT),
         "total_moderators": count_users_by_role(db, UserRole.MODERATOR),
         "total_admins": count_users_by_role(db, UserRole.ADMIN),
+        "total_super_admins": count_users_by_role(db, UserRole.SUPER_ADMIN),
         "total_content": total_content,
         "pending_content": pending_content,
         "published_content": published_content,
@@ -146,8 +149,52 @@ def update_user_role(
     user_id: str,
     role: UserRole,
     is_verified: bool | None = None,
+    *,
+    acting_admin: User,
 ) -> User:
+    """
+    Update a user's role.
+
+    HARDENED: previously any ADMIN could set ANY user's role to ANY value,
+    including ADMIN or SUPER_ADMIN -- a direct privilege-escalation path
+    (a single compromised or malicious admin account could mint new
+    super admins, including itself via a second account). Now:
+
+      - Only a SUPER_ADMIN may assign or remove a STAFF_ROLE
+        (MODERATOR / ADMIN / SUPER_ADMIN).
+      - Only a SUPER_ADMIN may change the role of an existing staff
+        member (moderator, admin, or another super admin) at all --
+        a scoped admin cannot touch staff accounts even to change them
+        to a non-staff role.
+      - A plain ADMIN (acting via a granted USERS_MANAGE permission,
+        checked at the router layer) may only move a user between the
+        ordinary member roles: READER, WRITER, TEACHER, STUDENT, PARENT.
+    """
     user = get_admin_user_or_404(db, user_id)
+
+    target_is_staff_now = user.role in STAFF_ROLES
+    target_would_be_staff = role in STAFF_ROLES
+
+    if acting_admin.role != UserRole.SUPER_ADMIN:
+        if target_is_staff_now or target_would_be_staff:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Only a super admin can assign or modify staff roles "
+                    "(moderator, admin, super admin)."
+                ),
+            )
+
+    # Safety net: never allow the last remaining super admin to be demoted,
+    # even by another super admin acting on themselves or by mistake --
+    # this would lock the platform out of its top administrative tier.
+    if user.role == UserRole.SUPER_ADMIN and role != UserRole.SUPER_ADMIN:
+        remaining_super_admins = count_users_by_role(db, UserRole.SUPER_ADMIN)
+        if remaining_super_admins <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot demote the last remaining super admin account.",
+            )
 
     user.role = role
 
@@ -175,6 +222,27 @@ def update_user_status(
             detail="You cannot deactivate your own admin account.",
         )
 
+    # HARDENED: a scoped ADMIN could previously deactivate another admin or
+    # even the super admin, which is a lockout / sabotage vector. Only a
+    # super admin may deactivate a staff account (moderator/admin/super
+    # admin). Non-staff accounts can still be deactivated by any admin
+    # holding USERS_MANAGE (checked at the router layer).
+    if user.role in STAFF_ROLES and current_admin.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a super admin can change another staff member's account status.",
+        )
+
+    if (
+        user.role == UserRole.SUPER_ADMIN
+        and not is_active
+        and count_users_by_role(db, UserRole.SUPER_ADMIN) <= 1
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate the last remaining super admin account.",
+        )
+
     user.is_active = is_active
 
     db.add(user)
@@ -182,6 +250,68 @@ def update_user_status(
     db.refresh(user)
 
     return user
+
+
+# ---------------------------------------------------------------------------
+# Scoped admin permission management (super admin only -- see routers/admin.py)
+# ---------------------------------------------------------------------------
+
+def list_permissions_for_user(db: Session, user_id: str) -> list[str]:
+    return list(
+        db.scalars(
+            select(AdminPermission.permission).where(AdminPermission.user_id == user_id)
+        ).all()
+    )
+
+
+def grant_permission(
+    db: Session,
+    user_id: str,
+    permission: Permission,
+    granted_by: User,
+) -> AdminPermission:
+    target = get_admin_user_or_404(db, user_id)
+
+    if target.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Scoped permissions can only be granted to ADMIN-role accounts. "
+            "SUPER_ADMIN already has every permission implicitly.",
+        )
+
+    existing = db.scalars(
+        select(AdminPermission).where(
+            AdminPermission.user_id == user_id,
+            AdminPermission.permission == permission.value,
+        )
+    ).first()
+
+    if existing:
+        return existing
+
+    grant = AdminPermission(
+        user_id=user_id,
+        permission=permission.value,
+        granted_by_id=granted_by.id,
+    )
+    db.add(grant)
+    db.commit()
+    db.refresh(grant)
+    return grant
+
+
+def revoke_permission(db: Session, user_id: str, permission: Permission) -> None:
+    existing = db.scalars(
+        select(AdminPermission).where(
+            AdminPermission.user_id == user_id,
+            AdminPermission.permission == permission.value,
+        )
+    ).first()
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+
 
 def list_admin_content(
     db: Session,

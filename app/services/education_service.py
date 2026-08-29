@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.permissions import is_admin_tier
 from app.models.content import Content, ContentStatus, ContentType
 from app.models.education import EducationResource
 from app.models.user import User, UserRole
@@ -9,7 +10,10 @@ from app.schemas.education import EducationResourceCreate
 
 
 def ensure_can_create_education_resource(user: User) -> None:
-    if user.role not in {UserRole.TEACHER, UserRole.WRITER, UserRole.ADMIN}:
+    # FIX: same SUPER_ADMIN exclusion bug found across content_service.py --
+    # was checking `role in {..., UserRole.ADMIN}`, which never matches
+    # SUPER_ADMIN.
+    if user.role not in {UserRole.TEACHER, UserRole.WRITER} and not is_admin_tier(user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only teachers, writers, or admins can create education resources.",
@@ -47,7 +51,7 @@ def create_education_resource(
             detail="Content was not found.",
         )
 
-    if content.author_id != user.id and user.role != UserRole.ADMIN:
+    if content.author_id != user.id and not is_admin_tier(user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only attach education data to your own content.",

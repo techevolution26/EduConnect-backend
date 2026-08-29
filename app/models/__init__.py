@@ -28,3 +28,12 @@ from app.models.partnership_payment import (
     PaymentProvider,
     PaymentStatus,
 )
+
+# --- Added: RBAC / permissions ---
+from app.models.permission import AdminPermission
+
+# --- Added: marketing events + student identity + gamification ---
+from app.models.event import Event, EventParticipant, EventStatus, EventType, ParticipationStatus
+from app.models.student import School, SchoolType, StudentProfile
+from app.models.gamification import Badge, UserBadge, XPLedgerEntry
+from app.models.monetization import ReferralEarning, ReferralEarningStatus

@@ -17,13 +17,19 @@ from app.models.moderation import ModerationLog
 from app.models.engagement import Bookmark, Comment, Follow, Like
 
 
+from app.core.permissions import is_admin_tier
+
+
 def calculate_reading_time_minutes(body: str) -> int:
     words = len(body.split())
     return max(1, round(words / 200))
 
 
 def ensure_can_write_content(user: User) -> None:
-    if user.role not in {UserRole.WRITER, UserRole.TEACHER, UserRole.ADMIN}:
+    # FIX: previously excluded SUPER_ADMIN (checked `role == UserRole.ADMIN`
+    # explicitly via set membership that never included SUPER_ADMIN). Use
+    # is_admin_tier so the super admin can always author/manage content.
+    if user.role not in {UserRole.WRITER, UserRole.TEACHER} and not is_admin_tier(user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only writers, teachers, or admins can publish content.",
@@ -31,7 +37,8 @@ def ensure_can_write_content(user: User) -> None:
 
 
 def ensure_content_owner_or_admin(content: Content, user: User) -> None:
-    if content.author_id != user.id and user.role != UserRole.ADMIN:
+    # FIX: same SUPER_ADMIN exclusion bug as above.
+    if content.author_id != user.id and not is_admin_tier(user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only modify your own content.",
@@ -118,7 +125,9 @@ def update_content(
     content = get_content_or_404(db, content_id)
     ensure_content_owner_or_admin(content, user)
 
-    if content.status == ContentStatus.PUBLISHED and user.role != UserRole.ADMIN:
+    # FIX: same SUPER_ADMIN exclusion bug as ensure_can_write_content /
+    # ensure_content_owner_or_admin above -- was `!= UserRole.ADMIN`.
+    if content.status == ContentStatus.PUBLISHED and not is_admin_tier(user.role):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Published content cannot be edited directly. Create a revision flow later.",
@@ -579,7 +588,7 @@ async def add_content_assets(
     created_assets: list[ContentAsset] = []
 
     for image in images:
-        url = await save_upload_file(image, "images")
+        url = await save_upload_file(image, "images", is_image=True)
         asset = ContentAsset(
             content_id=content.id,
             asset_type=ContentAssetType.IMAGE,
@@ -592,7 +601,7 @@ async def add_content_assets(
         created_assets.append(asset)
 
     for file in files:
-        url = await save_upload_file(file, "files")
+        url = await save_upload_file(file, "files", is_image=False)
         asset = ContentAsset(
             content_id=content.id,
             asset_type=ContentAssetType.FILE,

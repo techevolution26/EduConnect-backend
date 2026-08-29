@@ -7,7 +7,6 @@ from app.models.role_request import RoleRequestStatus, RoleUpgradeRequest
 from app.models.user import User, UserRole
 from app.services.notification_service import create_notification
 
-
 REQUESTABLE_ROLES = {
     UserRole.WRITER,
     UserRole.TEACHER,
@@ -186,7 +185,8 @@ def reject_role_request(
         user_id=request.user_id,
         notification_type=NotificationType.SYSTEM,
         title="Role request rejected",
-        body=admin_note or f"Your request to become {request.requested_role} was rejected.",
+        body=admin_note
+        or f"Your request to become {request.requested_role} was rejected.",
     )
 
     db.commit()

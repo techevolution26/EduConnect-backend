@@ -41,11 +41,7 @@ def list_discovery_feed(
         .limit(limit)
     )
 
-    count_statement = (
-        select(func.count())
-        .select_from(Content)
-        .where(and_(*filters))
-    )
+    count_statement = select(func.count()).select_from(Content).where(and_(*filters))
 
     items = list(db.scalars(statement).all())
     total = db.scalar(count_statement) or 0
@@ -105,9 +101,7 @@ def get_followed_writer_ids(db: Session, user_id: str) -> list[str]:
 
 def get_joined_hub_ids(db: Session, user_id: str) -> list[str]:
     return list(
-        db.scalars(
-            select(HubMember.hub_id).where(HubMember.user_id == user_id)
-        ).all()
+        db.scalars(select(HubMember.hub_id).where(HubMember.user_id == user_id)).all()
     )
 
 
@@ -223,6 +217,7 @@ def global_search(
                         UserRole.TEACHER,
                         UserRole.MODERATOR,
                         UserRole.ADMIN,
+                        UserRole.SUPER_ADMIN,
                     ]
                 ),
                 or_(
@@ -286,7 +281,9 @@ def global_search(
                 ),
             )
             .limit(limit)
-        ).unique().all()
+        )
+        .unique()
+        .all()
     )
 
     children_content = list(
@@ -304,7 +301,9 @@ def global_search(
                 ),
             )
             .limit(limit)
-        ).unique().all()
+        )
+        .unique()
+        .all()
     )
 
     return {

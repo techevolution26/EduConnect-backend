@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user, require_permission
+from app.core.permissions import Permission
 from app.models.user import User
 from app.schemas.common import MessageResponse
 from app.schemas.hub import HubCreate, HubRead, HubUpdate
@@ -40,7 +41,7 @@ def get_hub_by_slug(
 @router.post("", response_model=HubRead)
 def create_new_hub(
     payload: HubCreate,
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.CATALOG_MANAGE))],
     db: Annotated[Session, Depends(get_db)],
 ) -> HubRead:
     return create_hub(db, payload)
@@ -50,7 +51,7 @@ def create_new_hub(
 def update_existing_hub(
     hub_id: str,
     payload: HubUpdate,
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.CATALOG_MANAGE))],
     db: Annotated[Session, Depends(get_db)],
 ) -> HubRead:
     return update_hub(db, hub_id, payload)

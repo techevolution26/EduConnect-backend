@@ -39,6 +39,20 @@ class Settings(BaseSettings):
     mpesa_shortcode: str = Field(default="", alias="MPESA_SHORTCODE")
     mpesa_passkey: str = Field(default="", alias="MPESA_PASSKEY")
     mpesa_callback_url: str = Field(default="", alias="MPESA_CALLBACK_URL")
+    # HARDENING: Safaricom's Daraja API does not sign STK push callbacks in
+    # any way -- there is no header or body signature to verify. Without
+    # this secret, the callback endpoint was a fully open, unauthenticated
+    # POST route that ONLY trusted a `CheckoutRequestID` value which is
+    # returned directly to the paying client in the /partnerships/start
+    # response. Any user could start checkout, never pay, then POST a
+    # forged "success" callback straight to the endpoint using their own
+    # leaked CheckoutRequestID and get a paid partnership for free.
+    #
+    # This secret is embedded as a path segment in the callback URL i
+    # register with Safaricom (see routers/partnerships.py) and is never
+    # returned to any client. Generate a long random value in production,
+    # e.g. `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+    mpesa_callback_secret: str = Field(default="", alias="MPESA_CALLBACK_SECRET")
     mpesa_account_reference: str = Field(
         default="EduConnect",
         alias="MPESA_ACCOUNT_REFERENCE",

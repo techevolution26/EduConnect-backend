@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
+from app.core.permissions import Permission
 from app.models.user import UserRole
 
 
@@ -15,6 +16,7 @@ class AdminDashboardStats(BaseModel):
     total_parents: int
     total_moderators: int
     total_admins: int
+    total_super_admins: int
 
     total_content: int
     pending_content: int
@@ -57,3 +59,19 @@ class AdminUpdateUserRoleRequest(BaseModel):
 
 class AdminUpdateUserStatusRequest(BaseModel):
     is_active: bool
+
+
+class AdminPermissionRead(BaseModel):
+    permission: Permission
+    granted_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminPermissionGrantRequest(BaseModel):
+    permission: Permission
+
+
+class AdminPermissionListResponse(BaseModel):
+    user_id: str
+    permissions: list[Permission]

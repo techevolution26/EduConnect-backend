@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.rate_limit import rate_limit
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from app.schemas.user import UserRead
@@ -10,11 +11,18 @@ from app.services.auth_service import authenticate_user, register_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+# HARDENING: neither endpoint had any rate limiting -- /auth/login could be
+# brute-forced without friction, and /auth/register could be spammed to
+# create accounts. See core/rate_limit.py for caveats (in-process only).
+_register_rate_limit = rate_limit("auth-register", max_requests=5, window_seconds=60)
+_login_rate_limit = rate_limit("auth-login", max_requests=10, window_seconds=60)
+
 
 @router.post(
     "/register",
     response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_register_rate_limit)],
 )
 def register(
     payload: RegisterRequest,
@@ -36,7 +44,7 @@ def register(
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, dependencies=[Depends(_login_rate_limit)])
 def login(
     payload: LoginRequest,
     db: Session = Depends(get_db),

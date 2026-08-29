@@ -13,13 +13,16 @@ from app.routers import (
     content,
     education,
     engagement,
+    events,
     feed,
     health,
     hubs,
+    leaderboard,
     notifications,
     partnerships,
     role_requests,
     search,
+    students,
     users,
     writers,
     read_session
@@ -27,6 +30,18 @@ from app.routers import (
 
 settings = get_settings()
 upload_path = resolve_upload_dir()
+
+# HARDENING: fail fast at startup rather than silently running with an
+# open webhook if someone enables real M-Pesa payments without setting a
+# callback secret (see the long comment on mpesa_callback_secret in
+# core/config.py for why this secret exists at all).
+if settings.payment_mode.lower() == "mpesa" and not settings.mpesa_callback_secret:
+    raise RuntimeError(
+        "PAYMENT_MODE=mpesa requires MPESA_CALLBACK_SECRET to be set -- "
+        "without it, the /partnerships/mpesa/callback endpoint cannot be "
+        "safely exposed. Generate one with: "
+        "python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
     
 app = FastAPI(
     title=settings.app_name,
@@ -38,8 +53,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # HARDENING: wildcard methods/headers combined with allow_credentials=True
+    # is broader than this API needs. allow_origins is already an explicit
+    # list (never "*"), which is the part that actually matters most for
+    # credentialed CORS, but tightening these too costs nothing.
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 app.mount("/uploads", StaticFiles(directory=str(upload_path)), name="uploads")
@@ -61,3 +80,6 @@ app.include_router(admin.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(role_requests.router, prefix="/api/v1")
 app.include_router(read_session.router, prefix="/api/v1")
+app.include_router(events.router, prefix="/api/v1")
+app.include_router(students.router, prefix="/api/v1")
+app.include_router(leaderboard.router, prefix="/api/v1")

@@ -6,10 +6,15 @@ from app.models.content import Content, ContentStatus
 from app.models.engagement import Follow
 from app.models.user import User, UserRole
 
+# NOTE: includes SUPER_ADMIN for consistency with ensure_can_write_content
+# in content_service.py -- a super admin who authors content should be
+# treated as a writer for search/display purposes, not just permitted to
+# write but then invisible everywhere writers are listed.
 WRITER_ROLES = {
     UserRole.WRITER,
     UserRole.TEACHER,
     UserRole.ADMIN,
+    UserRole.SUPER_ADMIN,
     UserRole.MODERATOR,
 }
 
@@ -31,51 +36,71 @@ def get_writer_or_404(db: Session, writer_id: str) -> User:
 
 
 def get_writer_stats(db: Session, writer_id: str) -> dict[str, int | float]:
-    total_content = db.scalar(
-        select(func.count()).select_from(Content).where(Content.author_id == writer_id)
-    ) or 0
-
-    drafts = db.scalar(
-        select(func.count())
-        .select_from(Content)
-        .where(
-            Content.author_id == writer_id,
-            Content.status == ContentStatus.DRAFT,
+    total_content = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(Content.author_id == writer_id)
         )
-    ) or 0
+        or 0
+    )
 
-    pending = db.scalar(
-        select(func.count())
-        .select_from(Content)
-        .where(
-            Content.author_id == writer_id,
-            Content.status == ContentStatus.PENDING_REVIEW,
+    drafts = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == writer_id,
+                Content.status == ContentStatus.DRAFT,
+            )
         )
-    ) or 0
+        or 0
+    )
 
-    published = db.scalar(
-        select(func.count())
-        .select_from(Content)
-        .where(
-            Content.author_id == writer_id,
-            Content.status == ContentStatus.PUBLISHED,
+    pending = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == writer_id,
+                Content.status == ContentStatus.PENDING_REVIEW,
+            )
         )
-    ) or 0
+        or 0
+    )
 
-    rejected = db.scalar(
-        select(func.count())
-        .select_from(Content)
-        .where(
-            Content.author_id == writer_id,
-            Content.status == ContentStatus.REJECTED,
+    published = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == writer_id,
+                Content.status == ContentStatus.PUBLISHED,
+            )
         )
-    ) or 0
+        or 0
+    )
 
-    followers_count = db.scalar(
-        select(func.count())
-        .select_from(Follow)
-        .where(Follow.following_id == writer_id)
-    ) or 0
+    rejected = (
+        db.scalar(
+            select(func.count())
+            .select_from(Content)
+            .where(
+                Content.author_id == writer_id,
+                Content.status == ContentStatus.REJECTED,
+            )
+        )
+        or 0
+    )
+
+    followers_count = (
+        db.scalar(
+            select(func.count())
+            .select_from(Follow)
+            .where(Follow.following_id == writer_id)
+        )
+        or 0
+    )
 
     # Placeholders for now until qualified-read / payout tables are wired.
     likes_received = 0
@@ -92,9 +117,9 @@ def get_writer_stats(db: Session, writer_id: str) -> dict[str, int | float]:
         "total_content": total_content,
         "drafts": drafts,
         "pending": pending,
-        "published": published,
+        "published_count": published,
         "rejected": rejected,
-        "followers": followers_count,
+        "followers_count": followers_count,
         "likes_received": likes_received,
         "comments_received": comments_received,
         "bookmarks_received": bookmarks_received,

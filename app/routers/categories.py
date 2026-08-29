@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import require_admin
+from app.core.deps import require_permission
+from app.core.permissions import Permission
 from app.models.user import User
 from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
 from app.services.category_service import (
@@ -36,7 +37,7 @@ def get_category(
 @router.post("", response_model=CategoryRead)
 def create_new_category(
     payload: CategoryCreate,
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.CATALOG_MANAGE))],
     db: Annotated[Session, Depends(get_db)],
 ) -> CategoryRead:
     return create_category(db, payload)
@@ -46,7 +47,7 @@ def create_new_category(
 def update_existing_category(
     category_id: str,
     payload: CategoryUpdate,
-    current_user: Annotated[User, Depends(require_admin)],
+    current_user: Annotated[User, Depends(require_permission(Permission.CATALOG_MANAGE))],
     db: Annotated[Session, Depends(get_db)],
 ) -> CategoryRead:
     return update_category(db, category_id, payload)

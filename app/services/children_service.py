@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.permissions import is_admin_tier
 from app.models.content import Content, ContentStatus, ContentType
 from app.models.education import ChildrenContent
 from app.models.user import User, UserRole
@@ -9,7 +10,10 @@ from app.schemas.education import ChildrenContentCreate
 
 
 def ensure_can_create_children_content(user: User) -> None:
-    if user.role not in {UserRole.ADMIN, UserRole.MODERATOR}:
+    # FIX: same SUPER_ADMIN exclusion bug found across content_service.py,
+    # education_service.py -- was `role not in {UserRole.ADMIN, MODERATOR}`,
+    # which never matches SUPER_ADMIN.
+    if user.role != UserRole.MODERATOR and not is_admin_tier(user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins or moderators can add content to the children section.",
